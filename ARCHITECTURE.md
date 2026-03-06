@@ -16,7 +16,7 @@
 10. [Push Notifications](#10-push-notifications)
 11. [Caching Strategy](#11-caching-strategy)
 12. [Session Persistence](#12-session-persistence)
-13. [Smart Shuffle Algorithm](#13-smart-shuffle-algorithm)
+13. [Shuffle Algorithm](#13-shuffle-algorithm)
 14. [Security Considerations](#14-security-considerations)
 15. [Deployment Strategy](#15-deployment-strategy)
 16. [Development Phases / Roadmap](#16-development-phases--roadmap)
@@ -289,9 +289,9 @@ events ────────┐
                │ 1:N
                └──→ matches ──→ cards ──→ daily_basket_cards
 
-card_profiles (lookup table)
-
 leaderboard_entries
+
+reward_distributions
 
 mini_leagues ──→ mini_league_members
 
@@ -362,46 +362,40 @@ CREATE INDEX idx_matches_kickoff_time ON matches(kickoff_time);
 CREATE INDEX idx_matches_status ON matches(status);
 
 -- =============================================
--- CARD PROFILES
+-- CARD TIER SCORING (fixed, no admin configuration needed)
 -- =============================================
-CREATE TABLE card_profiles (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name            VARCHAR(50) UNIQUE NOT NULL,     -- 'balanced', 'lean_yes', 'lean_no', 'high_risk', 'low_risk'
-    yes_points      INTEGER NOT NULL,
-    no_points       INTEGER NOT NULL,
-    description     TEXT,
-    created_at      TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Seed default profiles
-INSERT INTO card_profiles (name, yes_points, no_points, description) VALUES
-    ('balanced',  10, 10, 'Equal points for Yes and No'),
-    ('lean_yes',  20, 10, 'Higher reward for Yes'),
-    ('lean_no',   10, 20, 'Higher reward for No'),
-    ('high_risk', 20,  5, 'High reward for Yes, low for No'),
-    ('low_risk',  10,  5, 'Moderate reward, low-risk No');
+-- Tier scoring is hardcoded in the application:
+--   Gold:   high_answer = 20, low_answer = 5
+--   Silver: high_answer = 15, low_answer = 10
+--   White:  both answers = 10
+--
+-- For Gold/Silver cards, the admin chooses which answer (Yes/No) gets the high points.
+-- For White cards, both answers are always 10 — no asymmetry.
 
 -- =============================================
 -- CARDS (Questions)
 -- =============================================
 CREATE TABLE cards (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    match_id        UUID NOT NULL REFERENCES matches(id),
-    profile_id      UUID NOT NULL REFERENCES card_profiles(id),
-    question_text   TEXT NOT NULL,
-    tier            VARCHAR(10) NOT NULL,             -- 'white' | 'bronze' | 'silver' | 'gold'
-    correct_answer  BOOLEAN,                          -- NULL until resolved, TRUE=Yes, FALSE=No
-    is_resolved     BOOLEAN DEFAULT FALSE,
-    available_date  DATE NOT NULL,                    -- The day this card appears in baskets
-    expires_at      TIMESTAMPTZ NOT NULL,             -- Match kickoff time
-    created_at      TIMESTAMPTZ DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ DEFAULT NOW()
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    match_id          UUID NOT NULL REFERENCES matches(id),
+    question_text     TEXT NOT NULL,
+    tier              VARCHAR(10) NOT NULL,             -- 'white' | 'silver' | 'gold'
+    high_answer_is_yes BOOLEAN,                         -- For Gold/Silver: TRUE means Yes=high pts, FALSE means No=high pts. NULL for White (symmetric).
+    correct_answer    BOOLEAN,                          -- NULL until resolved, TRUE=Yes, FALSE=No
+    is_resolved       BOOLEAN DEFAULT FALSE,
+    available_date    DATE NOT NULL,                    -- The day this card appears in baskets
+    expires_at        TIMESTAMPTZ NOT NULL,             -- Match kickoff time
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_cards_match_id ON cards(match_id);
 CREATE INDEX idx_cards_available_date ON cards(available_date);
 CREATE INDEX idx_cards_tier ON cards(tier);
 CREATE INDEX idx_cards_is_resolved ON cards(is_resolved);
+
+-- Basket tier validation: ensure exactly 3 Gold + 5 Silver + 7 White per published basket
+-- Enforced at application level in basket publish logic
 
 -- =============================================
 -- DAILY BASKETS
@@ -577,6 +571,42 @@ CREATE TABLE fcm_tokens (
 );
 
 CREATE INDEX idx_fcm_tokens_user_id ON fcm_tokens(user_id);
+
+-- =============================================
+-- REWARD DISTRIBUTIONS (Token Rewards)
+-- =============================================
+CREATE TABLE reward_distributions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    event_id        UUID REFERENCES events(id),      -- NULL for daily/weekly rewards
+    reward_type     VARCHAR(20) NOT NULL,             -- 'daily' | 'weekly' | 'tournament' | 'streak' | 'referral' | 'manual'
+    period_key      VARCHAR(20) NOT NULL,             -- '2026-06-15' | '2026-W24' | 'world-cup-2026'
+    leaderboard_rank INTEGER,                         -- User's rank at time of distribution
+    token_amount    DECIMAL(18,8) NOT NULL,           -- Token amount awarded
+    status          VARCHAR(20) DEFAULT 'pending',    -- 'pending' | 'claimed' | 'credited' | 'failed'
+    claimed_at      TIMESTAMPTZ,
+    credited_at     TIMESTAMPTZ,                      -- When tokens were sent to Exchange account
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_reward_distributions_user_id ON reward_distributions(user_id);
+CREATE INDEX idx_reward_distributions_status ON reward_distributions(status);
+CREATE INDEX idx_reward_distributions_type_period ON reward_distributions(reward_type, period_key);
+
+-- =============================================
+-- REWARD CONFIGS (Admin-configurable)
+-- =============================================
+CREATE TABLE reward_configs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reward_type     VARCHAR(20) NOT NULL,             -- 'daily' | 'weekly' | 'tournament'
+    event_id        UUID REFERENCES events(id),       -- NULL for global daily/weekly configs
+    rank_from       INTEGER NOT NULL,                 -- e.g., 1
+    rank_to         INTEGER NOT NULL,                 -- e.g., 3 (positions 1-3)
+    token_amount    DECIMAL(18,8) NOT NULL,           -- Token amount for this tier
+    is_active       BOOLEAN DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
 ---
@@ -626,6 +656,8 @@ Auth Header:  Authorization: Bearer <jwt_token>
 | GET    | `/me/stats`        | Get user stats (points, streaks) | User |
 | GET    | `/me/achievements` | Get user achievements            | User |
 | GET    | `/me/history`      | Get past sessions & answers      | User |
+| GET    | `/me/rewards`      | Get pending & claimed rewards    | User |
+| POST   | `/me/rewards/claim`| Claim pending token rewards      | User |
 
 #### Game Session
 
@@ -697,6 +729,11 @@ Auth Header:  Authorization: Bearer <jwt_token>
 | GET    | `/admin/analytics/overview`  | Dashboard analytics               |
 | GET    | `/admin/analytics/retention` | User retention metrics            |
 | GET    | `/admin/analytics/cards`     | Card answer distribution          |
+| GET    | `/admin/rewards/configs`     | List reward configurations        |
+| POST   | `/admin/rewards/configs`     | Create/update reward config       |
+| GET    | `/admin/rewards/history`     | View reward distribution history  |
+| POST   | `/admin/rewards/distribute`  | Trigger reward distribution       |
+| POST   | `/admin/rewards/grant`       | Manually grant tokens to a user   |
 | POST   | `/admin/notifications/send`  | Send custom push notification     |
 
 ### 5.3 WebSocket Endpoints
@@ -748,13 +785,24 @@ WSS: wss://api.xexplay.com/v1/ws
   }
 }
 
+// Token reward earned
+{
+  "type": "reward_earned",
+  "data": {
+    "reward_type": "daily",
+    "token_amount": "5.00000000",
+    "leaderboard_rank": 7,
+    "status": "pending"
+  }
+}
+
 // Achievement unlocked
 {
   "type": "achievement_unlocked",
   "data": {
     "achievement_key": "perfect_day",
     "achievement_name": "Sharpshooter",
-    "description": "All 5 predictions correct in one day"
+    "description": "All 10 predictions correct in one day"
   }
 }
 ```
@@ -908,7 +956,7 @@ The card swipe uses Flutter's **Draggable** or a library like `flutter_card_swip
 
 - **Right swipe** → Green overlay → "YES" confirmed
 - **Left swipe** → Red overlay → "NO" confirmed
-- **Down swipe / tap button** → Gray overlay → "SKIP" confirmed
+- **Up swipe / tap button** → Gray overlay → "SKIP" confirmed
 - Spring-back animation if swipe is not committed (threshold not reached)
 
 ---
@@ -930,7 +978,6 @@ xexplay-api/
 │   │   ├── event.go
 │   │   ├── match.go
 │   │   ├── card.go
-│   │   ├── card_profile.go
 │   │   ├── basket.go
 │   │   ├── session.go
 │   │   ├── answer.go
@@ -938,6 +985,7 @@ xexplay-api/
 │   │   ├── streak.go
 │   │   ├── achievement.go
 │   │   ├── referral.go
+│   │   ├── reward.go
 │   │   └── mini_league.go
 │   ├── repository/                   # Data access interfaces + implementations
 │   │   ├── interfaces.go            # Repository interfaces
@@ -953,6 +1001,7 @@ xexplay-api/
 │   │   │   ├── streak_repo.go
 │   │   │   ├── achievement_repo.go
 │   │   │   ├── referral_repo.go
+│   │   │   ├── reward_repo.go
 │   │   │   └── mini_league_repo.go
 │   │   └── redis/
 │   │       ├── cache_repo.go
@@ -967,7 +1016,8 @@ xexplay-api/
 │   │   ├── achievement_service.go
 │   │   ├── referral_service.go
 │   │   ├── notification_service.go
-│   │   └── shuffle_service.go       # Smart Shuffle Algorithm
+│   │   ├── reward_service.go        # Token reward distribution & claiming
+│   │   └── shuffle_service.go       # Shuffle Algorithm
 │   ├── handler/                      # HTTP handlers (controllers)
 │   │   ├── auth_handler.go
 │   │   ├── user_handler.go
@@ -982,6 +1032,7 @@ xexplay-api/
 │   │   │   ├── basket_handler.go
 │   │   │   ├── user_handler.go
 │   │   │   ├── analytics_handler.go
+│   │   │   ├── reward_handler.go
 │   │   │   └── notification_handler.go
 │   │   └── ws/
 │   │       └── websocket_handler.go
@@ -1077,13 +1128,14 @@ func (s *GameService) ResolveCard(ctx context.Context, cardID uuid.UUID, correct
 /users                      → User list (search, filter, paginate)
 /users/[id]                 → User detail (sessions, answers, stats)
 /leaderboards               → Leaderboard viewer & export
+/rewards                    → Reward config, distribution history, manual grants
 /notifications              → Send push notifications
-/settings                   → Scoring profiles, app config
+/settings                   → App config, tier scoring reference
 ```
 
 ### 8.2 Key Features
 
-- **Basket Builder:** Drag-and-drop interface for composing daily baskets of 15 cards.
+- **Basket Builder:** Drag-and-drop interface for composing daily baskets of exactly 15 cards (3 Gold + 5 Silver + 7 White). Validates tier counts before publishing.
 - **Card Resolution Panel:** After a match completes, admin sets the correct answer. System automatically resolves all user answers and updates leaderboards.
 - **Live Dashboard:** Real-time metrics showing active sessions, answers being submitted, leaderboard changes.
 - **User Moderation:** Ban/suspend users, view detailed activity logs.
@@ -1168,6 +1220,7 @@ func (s *GameService) ResolveCard(ctx context.Context, cardID uuid.UUID, correct
 | Streak at risk      | Evening if user hasn't played | Normal   |
 | Friend joined       | Referral signup               | Normal   |
 | Rank change         | Leaderboard recalculation     | Low      |
+| Token reward earned | Daily/weekly/tournament end   | High     |
 | Custom (admin)      | Admin sends manually          | Variable |
 
 ### 10.3 Implementation
@@ -1193,6 +1246,7 @@ func (s *GameService) ResolveCard(ctx context.Context, cardID uuid.UUID, correct
 | `session:{userId}:{date}`          | Hash (session state)        | 24 hours       |
 | `basket:{date}`                    | JSON (basket cards)         | 24 hours       |
 | `user:profile:{userId}`            | JSON (user profile)         | 1 hour         |
+| `rewards:{userId}:pending`         | JSON (pending rewards)      | 7 days         |
 | `rate_limit:{userId}:{endpoint}`   | Counter                     | 1 minute       |
 
 ### 11.2 Leaderboard Implementation
@@ -1231,12 +1285,14 @@ The user's game session is stored in both PostgreSQL (durable) and Redis (fast a
   "session_id": "uuid",
   "basket_id": "uuid",
   "shuffle_order": [3, 7, 1, 12, 5, 9, 2, 14, 6, 10, 4, 8, 11, 13, 15],
-  "current_index": 4,
-  "answers_used": 3,
-  "skips_used": 1,
+  "current_index": 7,
+  "answers_used": 5,
+  "skips_used": 2,
   "bonus_answers": 0,
-  "bonus_skips": 1,
+  "bonus_skips": 0,
   "status": "active"
+  // User has seen 7 cards: answered 5, skipped 2
+  // 8 cards remaining, 5 answers left, 3 skips left
 }
 ```
 
@@ -1257,50 +1313,31 @@ The user's game session is stored in both PostgreSQL (durable) and Redis (fast a
 
 ---
 
-## 13. Smart Shuffle Algorithm
+## 13. Shuffle Algorithm
 
 ### 13.1 Purpose
 
-The shuffle algorithm ensures fairness: every user sees a balanced distribution of card tiers in their first 8 actionable positions, while the order remains unpredictable.
+Since every user sees all 15 cards (10 answers + 5 skips = 15), the shuffle only determines the **order** in which cards appear. This matters because users can't go back — the order affects strategic decisions (e.g., "should I skip this Silver card hoping a Gold comes next?").
 
 ### 13.2 Algorithm
 
 ```
-Input:  15 cards in today's basket, categorized by tier
+Input:  15 cards in today's basket (3 Gold + 5 Silver + 7 White)
 Output: Ordered list of 15 card positions for this user
 
-Step 1: Categorize cards by tier
-  gold_cards   = cards where tier == 'gold'     (typically 1-2)
-  silver_cards = cards where tier == 'silver'   (typically 2-3)
-  bronze_cards = cards where tier == 'bronze'   (typically 3-4)
-  white_cards  = cards where tier == 'white'    (typically 6-8)
-
-Step 2: Select guaranteed cards for first 8 positions
-  selected = []
-  selected += random_sample(gold_cards, 1)
-  selected += random_sample(silver_cards, 2)
-  selected += random_sample(bronze_cards, 2)
-  selected += random_sample(white_cards, 3)
-  // Total: 8 cards
-
-Step 3: Shuffle the 8 selected cards randomly
-  shuffle(selected)
-
-Step 4: Remaining cards (15 - 8 = 7) go after position 8
-  remaining = all_cards - selected
-  shuffle(remaining)
-
-Step 5: Final order = selected + remaining
-
-Step 6: Store the shuffle order in the session
+Step 1: Take all 15 cards from the basket
+Step 2: Generate a random permutation (Fisher-Yates shuffle)
+Step 3: Store the shuffle order in the session
 ```
 
-### 13.3 Fairness Guarantees
+The algorithm is intentionally simple — a pure random permutation per user. No weighted distribution or tier-balancing logic is needed since every user sees every card.
 
-- Every user is guaranteed to see exactly **1 Gold, 2 Silver, 2 Bronze, 3 White** cards before they exhaust their 8 actions.
-- The order within those 8 positions is random, so no user gets the Gold card first or last predictably.
-- The remaining 7 cards act as a buffer, they're only reached if the user has actions left (e.g., streak bonuses).
-- This is not disclosed to the user.
+### 13.3 Properties
+
+- Every user sees all 15 cards in a unique random order.
+- No user can predict which card tier comes next.
+- The order is generated server-side and stored in the session to prevent client manipulation.
+- The shuffle is seeded per user+date to ensure consistency across session resumes.
 
 ---
 
@@ -1358,7 +1395,18 @@ This is the most critical security property of the architecture:
   - **No access** to exchange wallets, balances, private keys, KYC data, or trading systems.
 - **Secret rotation:** If the shared JWT secret needs rotation, both services update their `JWT_SECRET` env var simultaneously during a maintenance window.
 
-### 14.6 Additional Security
+### 14.6 Anti-Abuse for Token Rewards
+
+Since XEX Play distributes real tokens, additional anti-fraud measures are critical:
+
+- **Multi-account detection:** Device fingerprinting (device ID, IP address patterns) to detect users creating multiple accounts to farm rewards. Flagged accounts are reviewed before rewards are distributed.
+- **Minimum account age:** New accounts must be at least 7 days old before they are eligible for token rewards. Prevents drive-by farming.
+- **Reward velocity limits:** Maximum token rewards per user per period (daily/weekly caps). Even if a user tops leaderboards across multiple tournaments, they can't exceed the cap.
+- **XEX Exchange account verification:** Token claims require the linked XEX Exchange account to be in good standing (not suspended, basic verification completed).
+- **Anomaly detection:** Monitor for suspicious patterns — perfect scores from new accounts, coordinated answer patterns across accounts, unusual session timing.
+- **Reward hold period:** Token rewards have a configurable hold period before they can be claimed (e.g., 24 hours). This gives the system time to flag and review suspicious distributions.
+
+### 14.7 Additional Security
 
 - **HTTPS everywhere** — TLS termination at the reverse proxy.
 - **JWT secrets** rotated periodically (coordinated with Exchange team).
@@ -1471,10 +1519,10 @@ Deploy to production
 
 | Component    | Scope                                                            |
 | ------------ | ---------------------------------------------------------------- |
-| **Backend**  | Leaderboard service, streak system, push notifications (FCM)     |
-| **Flutter**  | Leaderboard screens, streak display, push notification handling  |
-| **Admin**    | Leaderboard management, analytics dashboard, notification sender |
-| **Database** | Leaderboard entries, streaks, FCM tokens tables                  |
+| **Backend**  | Leaderboard service, streak system, token rewards, push notifications (FCM) |
+| **Flutter**  | Leaderboard screens, streak display, reward balance, push notification handling |
+| **Admin**    | Leaderboard management, reward config, analytics dashboard, notification sender |
+| **Database** | Leaderboard entries, streaks, reward_distributions, reward_configs, FCM tokens  |
 | **Infra**    | Firebase project setup, staging environment                      |
 
 ### Phase 3: v1.5 — Social & Growth (3–4 weeks)
@@ -1495,9 +1543,9 @@ Deploy to production
 
 | Component   | Scope                                                         |
 | ----------- | ------------------------------------------------------------- |
-| **Backend** | Exchange integration APIs, points redemption, exclusive cards |
-| **Flutter** | Exchange prompts, reward redemption, trader benefits display  |
-| **Admin**   | Prize pool management, exchange metrics                       |
+| **Backend** | Exchange integration APIs, token claim flow, exclusive cards, anti-abuse system |
+| **Flutter** | Exchange prompts, token claim UX, trader benefits display                       |
+| **Admin**   | Prize pool management, anti-abuse dashboard, exchange metrics                   |
 | **Infra**   | Production deployment, monitoring, alerting, load testing     |
 
 ### Total Estimated Timeline: 13–18 weeks

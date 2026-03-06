@@ -27,11 +27,11 @@
 
 ### What is XEX Play?
 
-XEX Play is a card-based sports prediction game designed to engage users during live sports tournaments and create a daily habit loop. Each day, users receive a curated basket of prediction cards tied to real upcoming matches. With limited resources (5 answers and 3 skips), users must strategically decide which predictions to make and which to skip, creating genuine risk/reward decisions rather than mindless guessing.
+XEX Play is a card-based sports prediction game designed to engage users during live sports tournaments and create a daily habit loop. Each day, users receive a curated basket of 15 prediction cards tied to real upcoming matches. Users must answer 10 and skip 5 — they see every card but can't go back, creating genuine risk/reward decisions rather than mindless guessing. With real token rewards redeemable on XEX Exchange, every session has stakes.
 
 ### Elevator Pitch
 
-> "Pick your battles. 15 cards, 5 answers, 3 skips, predict sports outcomes, climb the leaderboard, and earn real rewards on XEX Exchange."
+> "Pick your battles. 15 cards, 10 answers, 5 skips — predict sports outcomes, climb the leaderboard, and earn real token rewards on XEX Exchange."
 
 ### Value Proposition
 
@@ -40,14 +40,14 @@ XEX Play is a card-based sports prediction game designed to engage users during 
 | Free, engaging daily sports game   | User acquisition funnel                    |
 | Strategic gameplay, not just luck  | Daily active user engagement               |
 | Compete with friends and globally  | Conversion to exchange trading             |
-| Earn real rewards (exchange perks) | Brand association with major sports events |
-| Quick sessions (~5 minutes/day)    | Cross-promotion channel                    |
+| Earn real token rewards             | Brand association with major sports events |
+| Longer sessions (~10 minutes/day)  | Cross-promotion channel                    |
 
 ### Design Principles
 
 - **Daily Habit Formation** — The game is designed to bring users back every single day through limited daily resources, streaks, and expiring cards.
-- **Real Decision-Making** — Limited answers and skips force users to evaluate risk/reward on every card.
-- **Anti-Spam Scoring** — The scoring system prevents users from blindly answering only high-point cards. Resource management is key.
+- **Real Decision-Making** — 10 answers and 5 skips across 15 cards force users to evaluate risk/reward on every single card. Every card is seen, no going back.
+- **Skip Management as Strategy** — Users see all 15 cards but must skip 5. Choosing when to skip is the core strategic decision — skip now hoping for better, or answer a mediocre card to save skips?
 - **Live Sports Connection** — Cards are directly tied to real matches with real expiry times, keeping the game grounded in reality.
 - **Exchange Funnel** — Every feature subtly guides users toward XEX Exchange without being intrusive.
 
@@ -103,7 +103,7 @@ Example cards:
 │                                             │
 │       ← SWIPE LEFT (No)                     │
 │                    SWIPE RIGHT (Yes) →       │
-│              ↓ SKIP ↓                        │
+│              ↑ SKIP ↑                        │
 └─────────────────────────────────────────────┘
 ```
 
@@ -111,19 +111,22 @@ Example cards:
 
 | Resource          | Quantity | Purpose                          |
 | ----------------- | -------- | -------------------------------- |
-| **Answers**       | 5        | Respond Yes or No to a card      |
-| **Skips**         | 3        | Burn a card without answering    |
-| **Total Actions** | 8        | Maximum interactions per session |
+| **Answers**       | 10       | Respond Yes or No to a card      |
+| **Skips**         | 5        | Burn a card without answering    |
+| **Total Actions** | 15       | Every card is seen, every card requires a decision |
+
+Since 10 answers + 5 skips = 15 = total cards, **every user sees every card**. There are no hidden cards. The strategic tension comes from deciding which 5 cards to skip and which 10 to answer — with no going back.
 
 - **Answer (Yes/No):** Consumes 1 answer resource. The card is locked and scored after the match.
 - **Skip:** Consumes 1 skip resource. The card is burned and cannot be revisited. No points awarded.
-- **No action within 40 seconds:** The card is automatically skipped (consumes a skip if available, otherwise the card expires).
+- **No skips remaining:** Once all 5 skips are used, every remaining card **must** be answered. The UI makes this clear ("No skips remaining — you must answer all remaining cards").
+- **No action within 40 seconds:** The card is automatically skipped (consumes a skip if available, otherwise the card expires with no resource consumed).
 
 ### 3.3 Card Display Rules
 
 - Only **one card** is visible at a time.
 - Users **cannot see** previous or upcoming cards.
-- Card order is **shuffled uniquely** per user (via the Smart Shuffle Algorithm).
+- Card order is **shuffled uniquely** per user (random permutation, server-side).
 - There is **no going back** — once a card is answered or skipped, it's gone.
 
 ### 3.4 The 40-Second Timer
@@ -138,49 +141,31 @@ Each card has a **40-second countdown timer**. If the timer expires:
 
 The primary interaction model is **swipe-based**:
 
-| Gesture          | Action         |
-| ---------------- | -------------- |
-| Swipe Right      | Answer **Yes** |
-| Swipe Left       | Answer **No**  |
-| Swipe Down / Tap | **Skip**       |
+| Gesture        | Action         |
+| -------------- | -------------- |
+| Swipe Right    | Answer **Yes** |
+| Swipe Left     | Answer **No**  |
+| Swipe Up / Tap | **Skip**       |
 
-This creates a fast, tactile, mobile-native experience similar to dating apps but for sports predictions.
+Swiping up to skip feels natural — like scrolling past content in a feed. This creates a fast, tactile, mobile-native experience similar to dating apps but for sports predictions.
 
-### 3.6 Card Scoring Profiles
+### 3.6 Card Tiers & Scoring
 
-Each card is assigned a **scoring profile** by the admin. The profile determines how many points the Yes and No answers are worth. The scoring asymmetry is the core strategic element, users must decide whether the risk is worth the reward.
+Cards are grouped into **3 tiers** with fixed point values. The tier determines the visual style and the scoring asymmetry. Each tier has a **fixed count** per daily basket — this is always the same, so users can plan their strategy around it.
 
-| Profile       | Yes Points | No Points | Color  | Strategy                           |
-| ------------- | ---------- | --------- | ------ | ---------------------------------- |
-| **Balanced**  | +10        | +10       | White  | Safe pick, equal either way        |
-| **Lean-Yes**  | +20        | +10       | Bronze | High reward for Yes, decent for No |
-| **Lean-No**   | +10        | +20       | Silver | High reward for No, decent for Yes |
-| **High-Risk** | +20        | +5        | Gold   | Huge reward for Yes, low for No    |
-| **Low-Risk**  | +10        | +5        | White  | Moderate reward, low-risk No       |
+| Tier       | Count  | Points (Option A) | Points (Option B) | Color           | Strategy                             |
+| ---------- | ------ | ------------------ | ------------------ | --------------- | ------------------------------------ |
+| **Gold**   | 3      | +20 / +5           | +5 / +20           | Shiny, premium  | High risk/reward — big swing either way |
+| **Silver** | 5      | +15 / +10          | +10 / +15          | Cool metallic   | Medium risk — slight edge on one side   |
+| **White**  | 7      | +10 / +10          | +10 / +10          | Clean, minimal  | Safe — equal points either way          |
 
-### 3.7 Card Tiers
+**How scoring works:**
 
-Cards are visually distinguished by their tier, which correlates with their scoring profile:
+- **Gold cards** are always asymmetric: one answer is worth +20, the other +5. The admin decides per card whether Yes or No is the high-reward answer. This means you can't blindly swipe one direction on Gold cards — you need to actually think about the prediction.
+- **Silver cards** have a mild asymmetry: one answer is +15, the other +10. Less punishing than Gold but still rewards correct assessment of which side is favored.
+- **White cards** are always balanced at +10/+10. Safe picks — you get the same points regardless of which answer is correct.
 
-| Tier       | Visual Style        | Typical Profile     | Rarity in Basket |
-| ---------- | ------------------- | ------------------- | ---------------- |
-| **White**  | Clean, minimal      | Balanced / Low-Risk | Common (6–8)     |
-| **Bronze** | Warm metallic       | Lean-Yes            | Uncommon (3–4)   |
-| **Silver** | Cool metallic       | Lean-No             | Rare (2–3)       |
-| **Gold**   | Shiny, premium feel | High-Risk           | Very Rare (1–2)  |
-
-### 3.8 Smart Shuffle Distribution
-
-The system guarantees a fair distribution in the first 8 cards each user sees (since they can take at most 8 actions: 5 answers + 3 skips):
-
-| Tier   | Guaranteed in First 8 |
-| ------ | --------------------- |
-| Gold   | 1 card                |
-| Silver | 2 cards               |
-| Bronze | 2 cards               |
-| White  | 3 cards               |
-
-The remaining 7 cards in the basket serve as a buffer for expired cards and provide variety. The shuffle order is randomized per user and stored server-side.
+**Fixed counts matter:** Since every basket always has exactly 3 Gold + 5 Silver + 7 White = 15 cards, and every user sees all 15, users can develop strategies around tier management. A risk-loving player might save all their answers for Gold and Silver cards, skipping Whites. A conservative player might answer every White card for guaranteed points. The fixed distribution makes this strategic planning possible.
 
 ---
 
@@ -198,8 +183,8 @@ The remaining 7 cards in the basket serve as a buffer for expired cards and prov
 │                     ↓                               │
 │  3. Quick tutorial (3 screens):                     │
 │     - "You get 15 cards daily"                      │
-│     - "5 answers, 3 skips, choose wisely"          │
-│     - "Climb the leaderboard, earn rewards"         │
+│     - "10 answers, 5 skips — see every card"       │
+│     - "Climb the leaderboard, earn token rewards"   │
 │                     ↓                               │
 │  4. Drop into first daily basket immediately        │
 │                                                     │
@@ -215,7 +200,7 @@ System checks: Active session today?
     ├── YES → Resume from last card position
     └── NO  → Generate new session:
                 - Select 15 cards from today's basket
-                - Shuffle order (Smart Shuffle Algorithm)
+                - Shuffle card order (random permutation)
                 - Store session state
     ↓
 Show Card #1 (40s timer starts)
@@ -225,13 +210,12 @@ User decides: Answer (Yes/No) or Skip
 Card is locked, next card appears
     ↓
 Repeat until:
-    - All 5 answers used, OR
-    - All 5 answers + 3 skips used, OR
-    - All remaining cards expired, OR
-    - No cards left in basket
+    - All 15 cards processed (10 answered + 5 skipped), OR
+    - All 10 answers used (remaining cards must be answered), OR
+    - All remaining cards expired
     ↓
 Session summary:
-    - Cards answered: X/5
+    - Cards answered: X/10
     - Predictions pending: waiting for match results
     - Current streak: N days
     ↓
@@ -294,7 +278,9 @@ A user's daily score is the sum of points from all correctly predicted cards tha
 
 ```
 Daily Score = Σ (Points for each correct prediction)
-Maximum possible daily score = 5 × 20 = 100 points (if all 5 answers are correct on max-point cards)
+Maximum possible daily score = (3 × 20) + (5 × 15) + (2 × 10) = 155 points
+  (answering all 3 Gold correctly on the +20 side, all 5 Silver on the +15 side,
+   and 2 of 7 White cards — skipping the other 5)
 ```
 
 ### 5.3 Tiebreaker Rules
@@ -304,8 +290,9 @@ When two users have the same score, ties are broken in order:
 | Priority | Tiebreaker              | Rationale                           |
 | -------- | ----------------------- | ----------------------------------- |
 | 1st      | Fewer incorrect answers | Rewards accuracy over volume        |
-| 2nd      | Earlier submission time | Rewards decisive, confident players |
-| 3rd      | Longer active streak    | Rewards consistent daily engagement |
+| 2nd      | Higher-tier cards answered correctly | Rewards risk-taking on Gold/Silver cards |
+| 3rd      | Earlier submission time | Rewards decisive, confident players |
+| 4th      | Longer active streak    | Rewards consistent daily engagement |
 
 ### 5.4 Seasonal Resets
 
@@ -335,12 +322,12 @@ Multiple leaderboard views to sustain competition:
 
 Users can invite friends to earn bonus resources:
 
-| Milestone                         | Reward                                  |
-| --------------------------------- | --------------------------------------- |
-| Friend signs up via referral link | +1 bonus skip for referrer (next day)   |
-| Friend completes first session    | +1 bonus answer for referrer (next day) |
-| 5 friends referred                | Exclusive referral badge                |
-| 10 friends referred               | Permanent +1 daily skip                 |
+| Milestone                         | Reward                                    |
+| --------------------------------- | ----------------------------------------- |
+| Friend signs up via referral link | +1 bonus skip for referrer (next day)     |
+| Friend completes first session    | +1 bonus answer for referrer (next day)   |
+| 5 friends referred                | Exclusive referral badge + token bonus    |
+| 10 friends referred               | Permanent +1 daily skip + token bonus     |
 
 ### 6.3 Achievements & Badges
 
@@ -349,7 +336,7 @@ Achievements provide long-term goals and collectibility:
 | Achievement          | Condition                            | Badge          |
 | -------------------- | ------------------------------------ | -------------- |
 | First Prediction     | Answer your first card               | Rookie         |
-| Perfect Day          | All 5 predictions correct in one day | Sharpshooter   |
+| Perfect Day          | All 10 predictions correct in one day | Sharpshooter   |
 | 10-Day Streak        | Play 10 consecutive days             | Dedicated      |
 | 30-Day Streak        | Play 30 consecutive days             | Loyal Fan      |
 | 100-Day Streak       | Play 100 consecutive days            | Legend         |
@@ -372,11 +359,12 @@ Each shared item includes a **deep link** back to XEX Play (organic growth).
 
 ### 6.5 Mini-Leagues / Private Groups
 
-Users can create or join private groups to compete:
+Users can create or join private groups to compete with friends within any tournament:
 
 - Create a mini-league with a custom name and invite code.
 - Share the invite code with friends.
-- Dedicated leaderboard within the group.
+- **Per-tournament leaderboard** — each mini-league tracks scores per active tournament, so friends compete head-to-head within the same event.
+- Dedicated mini-league leaderboard within the group (daily, weekly, and tournament views).
 - Group chat (future enhancement).
 - Great for friend groups, office pools, sports clubs.
 
@@ -391,6 +379,7 @@ Users can create or join private groups to compete:
 | Streak at risk                | "Don't break your 7-day streak! Play today."        | Evening if not played  |
 | Friend joined via referral    | "Your friend Ali just joined! You earned +1 skip."  | On signup              |
 | Leaderboard milestone         | "You moved up to #15 on the weekly leaderboard!"    | On rank change         |
+| Token reward earned           | "You earned 10 tokens for finishing #5 today!"      | After daily/weekly end |
 | New tournament started        | "UEFA Champions League is live! Start predicting."  | Event launch day       |
 
 ### 6.7 Streak System
@@ -401,7 +390,7 @@ The streak system rewards consistent daily play:
 | ------------- | ------------------------------------------------ |
 | 3 days        | Visual streak badge on profile                   |
 | 7 days        | +1 bonus skip for the next day                   |
-| 10 days       | +1 bonus skip + 1 guaranteed Gold card in basket |
+| 10 days       | +1 bonus skip + token bonus                      |
 | 14 days       | +1 bonus answer for the next day                 |
 | 21 days       | Exclusive streak achievement badge               |
 | 30 days       | +1 permanent daily skip (until streak breaks)    |
@@ -411,7 +400,7 @@ The streak system rewards consistent daily play:
 - A day counts as "played" if the user opens a session and answers at least 1 card.
 - Missing a single day resets the streak to 0.
 - Streak bonuses are applied the following day.
-- The 10-day milestone matches the original spec: +1 skip and seeing one additional Gold card (+20 pts).
+- The 10-day milestone grants a token bonus in addition to the gameplay benefit.
 
 ---
 
@@ -439,32 +428,55 @@ Instead, XEX Play reuses the exchange's **JWT tokens** via a shared signing secr
 - If XEX Play is ever compromised, the exchange is unaffected.
 - Users get seamless SSO with a single account across both products.
 
-### 7.2 Leaderboard Rewards
+### 7.2 Token Rewards
 
-| Leaderboard Position | Exchange Reward                                |
-| -------------------- | ---------------------------------------------- |
-| Top 10 (Weekly)      | 50% trading fee discount for 1 week            |
-| Top 50 (Weekly)      | 25% trading fee discount for 1 week            |
-| Top 100 (Weekly)     | 10% trading fee discount for 1 week            |
-| Top 3 (Tournament)   | Prize pool distribution (funded by exchange)   |
-| #1 (Tournament)      | VIP exchange status + premium trading features |
+XEX Play rewards winners with **real tokens** that can be claimed and traded on XEX Exchange. This is the primary incentive loop — play well, earn tokens, go to the exchange to use them.
 
-### 7.3 Points Redemption
+#### Daily Rewards
 
-Users can redeem accumulated XEX Play points for exchange perks:
+| Leaderboard Position | Daily Token Reward                 |
+| -------------------- | ---------------------------------- |
+| #1 (Daily)           | Large token prize                  |
+| Top 3 (Daily)        | Medium token prize                 |
+| Top 10 (Daily)       | Small token prize                  |
+| Top 50 (Daily)       | Micro token prize                  |
 
-| Points | Reward                                   |
-| ------ | ---------------------------------------- |
-| 200    | Small trading fee credit                 |
-| 500    | Medium trading fee credit                |
-| 1000   | Bonus exchange tokens                    |
-| 2500   | Premium exchange feature unlock (1 week) |
+Daily rewards create a reason to come back every single day. Even small token amounts add up over time.
+
+#### Weekly Rewards
+
+| Leaderboard Position | Weekly Reward                                        |
+| -------------------- | ---------------------------------------------------- |
+| Top 10 (Weekly)      | Token prize + 50% trading fee discount for 1 week   |
+| Top 50 (Weekly)      | Token prize + 25% trading fee discount for 1 week   |
+| Top 100 (Weekly)     | Token prize + 10% trading fee discount for 1 week   |
+
+#### Tournament Rewards
+
+| Leaderboard Position | Tournament Reward                                      |
+| -------------------- | ------------------------------------------------------ |
+| #1 (Tournament)      | Grand token prize + VIP exchange status                |
+| Top 3 (Tournament)   | Large token prize pool distribution                    |
+| Top 10 (Tournament)  | Medium token prize                                     |
+| Top 50 (Tournament)  | Small token prize                                      |
+
+Tournament prize pools are announced at the start of each tournament and funded by XEX Exchange.
+
+### 7.3 Token Claim Flow
+
+Tokens earned in XEX Play are credited to the user's XEX Exchange account:
+
+1. User earns tokens through daily/weekly/tournament leaderboard placement.
+2. Tokens accumulate in XEX Play's reward balance (visible in-app).
+3. User taps "Claim Rewards" → tokens are transferred to their XEX Exchange account.
+4. User can then trade, hold, or withdraw tokens on the exchange.
+
+This flow ensures every winner visits XEX Exchange, completing the funnel.
 
 ### 7.4 Exclusive Cards for Active Traders
 
 Users who actively trade on XEX Exchange receive exclusive benefits in XEX Play:
 
-- **Trader Card Pack:** Extra 2 cards added to daily basket (17 total).
 - **Exchange Insider:** Special prediction cards about crypto market events.
 - **VIP Tier:** Access to exclusive high-value prediction cards.
 
@@ -473,18 +485,19 @@ Users who actively trade on XEX Exchange receive exclusive benefits in XEX Play:
 Strategic, non-intrusive prompts throughout the user journey:
 
 - Post-session: "Turn your prediction skills into trading profits on XEX Exchange."
-- Reward screen: "Your 500 points can become fee credits. Redeem now?"
+- Reward screen: "You have 50 tokens to claim! Go to XEX Exchange to trade them."
 - Achievement: "You're a prediction expert! Try your hand at trading."
 - Leaderboard: "Top players trade on XEX Exchange. Join them."
 
 ### 7.6 Tournament Prize Pools
 
-For major events (World Cup, Champions League), XEX Exchange funds prize pools:
+For major events (World Cup, Champions League), XEX Exchange funds token prize pools:
 
-- Prize pools are announced at the start of each tournament.
+- Prize pools (in tokens) are announced at the start of each tournament.
 - Distribution is based on final tournament leaderboard positions.
-- Prizes are credited directly to the user's XEX Exchange account.
+- Tokens are credited to XEX Play reward balance, claimable to Exchange account.
 - Creates a compelling reason to both play XEX Play and use XEX Exchange.
+- Larger tournaments = larger prize pools = more user acquisition.
 
 ---
 
@@ -505,18 +518,23 @@ For major events (World Cup, Champions League), XEX Exchange funds prize pools:
 
 ### 8.3 Card/Question Management
 
-- Create daily prediction cards (up to 15 per day).
+- Create daily prediction cards (exactly 15 per day: 3 Gold + 5 Silver + 7 White).
 - Set the question text for each card.
-- Assign a scoring profile (Balanced, Lean-Yes, Lean-No, High-Risk, Low-Risk).
-- Assign card tier (White, Bronze, Silver, Gold).
+- Assign card tier (Gold, Silver, White) — scoring is determined by tier.
+- For Gold cards: choose which answer (Yes/No) gets the +20 (the other gets +5).
+- For Silver cards: choose which answer gets the +15 (the other gets +10).
+- White cards are always +10/+10 (no admin choice needed).
 - Link cards to specific matches (for expiry timing).
+- **Basket validation:** The system enforces exactly 3 Gold + 5 Silver + 7 White = 15 cards. A basket cannot be published with incorrect tier counts.
 - Preview the daily basket before it goes live.
 
-### 8.4 Scoring Profile Management
+### 8.4 Reward & Prize Management
 
-- View and manage scoring profiles.
-- Create custom profiles if needed (beyond the default 5).
-- Assign profiles to cards.
+- Configure daily token reward amounts per leaderboard position.
+- Configure weekly token reward amounts per leaderboard position.
+- Set up tournament prize pools (total tokens, distribution percentages).
+- View reward distribution history and audit trail.
+- Manually grant token rewards to specific users if needed.
 
 ### 8.5 User Management
 
@@ -565,7 +583,7 @@ Free Game → User Engagement → Exchange Awareness → Trading Activity → Ex
 | -------------------------- | ------------------------------------------------------ |
 | **User Acquisition**       | Free game attracts sports fans who create XEX accounts |
 | **Daily Engagement**       | Daily play keeps XEX Exchange top-of-mind              |
-| **Points Redemption**      | Users visit exchange to redeem points                  |
+| **Token Rewards**          | Winners claim tokens on exchange, driving visits       |
 | **Fee Discount Rewards**   | Winners are incentivized to trade to use discounts     |
 | **Social Virality**        | Referrals and sharing bring new users organically      |
 | **Tournament Prize Pools** | Prize pools attract competitive users to exchange      |
