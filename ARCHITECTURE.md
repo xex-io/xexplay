@@ -313,6 +313,7 @@ CREATE TABLE users (
     role            VARCHAR(20) DEFAULT 'user',       -- 'user' | 'admin' (Play-local role override)
     referral_code   VARCHAR(20) UNIQUE NOT NULL,
     referred_by     UUID REFERENCES users(id),
+    language        VARCHAR(5) DEFAULT 'en',           -- Preferred language code: 'en', 'fa', 'ar', 'tr', 'es', 'fr'
     total_points    INTEGER DEFAULT 0,
     is_active       BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -329,9 +330,9 @@ CREATE INDEX idx_users_referral_code ON users(referral_code);
 -- =============================================
 CREATE TABLE events (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name            VARCHAR(255) NOT NULL,           -- "FIFA World Cup 2026"
+    name            JSONB NOT NULL,                  -- {"en": "FIFA World Cup 2026", "fa": "جام جهانی فیفا ۲۰۲۶"}
     slug            VARCHAR(100) UNIQUE NOT NULL,    -- "world-cup-2026"
-    description     TEXT,
+    description     JSONB,                           -- {"en": "The 2026 FIFA...", "fa": "جام جهانی..."}
     start_date      DATE NOT NULL,
     end_date        DATE NOT NULL,
     is_active       BOOLEAN DEFAULT FALSE,
@@ -378,7 +379,7 @@ CREATE INDEX idx_matches_status ON matches(status);
 CREATE TABLE cards (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     match_id          UUID NOT NULL REFERENCES matches(id),
-    question_text     TEXT NOT NULL,
+    question_text     JSONB NOT NULL,                    -- {"en": "Will Brazil score...", "fa": "آیا برزیل...", "ar": "هل ستسجل..."}
     tier              VARCHAR(10) NOT NULL,             -- 'white' | 'silver' | 'gold'
     high_answer_is_yes BOOLEAN,                         -- For Gold/Silver: TRUE means Yes=high pts, FALSE means No=high pts. NULL for White (symmetric).
     correct_answer    BOOLEAN,                          -- NULL until resolved, TRUE=Yes, FALSE=No
@@ -503,8 +504,8 @@ CREATE TABLE streaks (
 CREATE TABLE achievements (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     key             VARCHAR(50) UNIQUE NOT NULL,      -- 'first_prediction', 'perfect_day', etc.
-    name            VARCHAR(100) NOT NULL,
-    description     TEXT NOT NULL,
+    name            JSONB NOT NULL,                  -- {"en": "Sharpshooter", "fa": "تیرانداز"}
+    description     JSONB NOT NULL,                  -- {"en": "All 10 predictions correct", "fa": "همه ۱۰ پیش‌بینی درست"}
     badge_icon      VARCHAR(255),
     condition_type  VARCHAR(50) NOT NULL,             -- 'streak', 'score', 'referral', etc.
     condition_value INTEGER NOT NULL,                 -- threshold value
@@ -616,9 +617,10 @@ CREATE TABLE reward_configs (
 ### 5.1 Base URL & Conventions
 
 ```
-Base URL:    https://api.xexplay.com/v1
-Content-Type: application/json
-Auth Header:  Authorization: Bearer <jwt_token>
+Base URL:         https://api.xexplay.com/v1
+Content-Type:     application/json
+Auth Header:      Authorization: Bearer <jwt_token>
+Language Header:  Accept-Language: fa  (optional, falls back to user preference, then 'en')
 ```
 
 **Response Envelope:**
@@ -652,7 +654,7 @@ Auth Header:  Authorization: Bearer <jwt_token>
 | Method | Endpoint           | Description                      | Auth |
 | ------ | ------------------ | -------------------------------- | ---- |
 | GET    | `/me`              | Get current user profile         | User |
-| PUT    | `/me`              | Update display name / avatar     | User |
+| PUT    | `/me`              | Update display name / avatar / language | User |
 | GET    | `/me/stats`        | Get user stats (points, streaks) | User |
 | GET    | `/me/achievements` | Get user achievements            | User |
 | GET    | `/me/history`      | Get past sessions & answers      | User |
@@ -820,8 +822,14 @@ lib/
 ├── core/
 │   ├── constants/
 │   │   ├── api_constants.dart
-│   │   ├── app_colors.dart
-│   │   └── app_strings.dart
+│   │   └── app_colors.dart
+│   ├── l10n/
+│   │   ├── app_en.arb                   # English strings (source)
+│   │   ├── app_fa.arb                   # Persian strings
+│   │   ├── app_ar.arb                   # Arabic strings
+│   │   ├── app_tr.arb                   # Turkish strings
+│   │   ├── app_es.arb                   # Spanish strings
+│   │   └── app_fr.arb                   # French strings
 │   ├── errors/
 │   │   ├── exceptions.dart
 │   │   └── failures.dart
@@ -943,14 +951,30 @@ Using **GoRouter** for declarative, deep-link-ready routing:
 /social/leagues/:id     → Mini-league detail
 ```
 
-### 6.4 Offline Support
+### 6.4 Internationalization (i18n)
+
+The app is fully localized using Flutter's built-in internationalization:
+
+- **Framework:** `flutter_localizations` + `intl` package with ARB files.
+- **Source of truth:** `app_en.arb` is the source language. All other `.arb` files are translations.
+- **RTL support:** Persian (`fa`) and Arabic (`ar`) use right-to-left layout. Flutter's `Directionality` widget handles this automatically based on locale.
+- **Dynamic content:** Card questions, event names, and achievement names come from the API already localized (the server reads the user's `language` preference or `Accept-Language` header and returns the correct translation from the JSONB field).
+- **Static UI strings:** Buttons, labels, error messages, tutorial text — all in ARB files, never hardcoded.
+- **Language detection:** On first launch, the app detects the device locale. If it matches a supported language, that's used. Otherwise, defaults to English. The user can change language in settings, which calls `PUT /me` with the new `language` value.
+- **Locale provider:**
+
+```dart
+final localeProvider = StateProvider<Locale>((ref) => const Locale('en'));
+```
+
+### 6.5 Offline Support
 
 - Session state is cached locally using **Hive** or **SharedPreferences**.
 - If the user loses connectivity mid-session, the app preserves local state.
 - On reconnect, the app syncs with the server to resume from the correct position.
 - Cards with expired timers during offline are handled on reconnect (server is source of truth).
 
-### 6.5 Card Swipe Animation
+### 6.6 Card Swipe Animation
 
 The card swipe uses Flutter's **Draggable** or a library like `flutter_card_swiper`:
 
@@ -1038,6 +1062,7 @@ xexplay-api/
 │   │       └── websocket_handler.go
 │   ├── middleware/
 │   │   ├── auth.go                  # Exchange JWT validation (shared secret)
+│   │   ├── locale.go                # Accept-Language parsing, user language fallback
 │   │   ├── admin.go                 # Admin role check
 │   │   ├── rate_limiter.go
 │   │   ├── cors.go
@@ -1083,7 +1108,7 @@ xexplay-api/
 ### 7.3 Middleware Chain
 
 ```
-Request → Logger → Recovery → CORS → RateLimiter → Auth (JWT) → [Admin Check] → Handler
+Request → Logger → Recovery → CORS → RateLimiter → Auth (JWT) → Locale → [Admin Check] → Handler
 ```
 
 ### 7.4 Game Service — Core Logic
@@ -1129,8 +1154,9 @@ func (s *GameService) ResolveCard(ctx context.Context, cardID uuid.UUID, correct
 /users/[id]                 → User detail (sessions, answers, stats)
 /leaderboards               → Leaderboard viewer & export
 /rewards                    → Reward config, distribution history, manual grants
+/translations               → Translation status, missing translations per language
 /notifications              → Send push notifications
-/settings                   → App config, tier scoring reference
+/settings                   → App config, supported languages, tier scoring reference
 ```
 
 ### 8.2 Key Features
@@ -1147,6 +1173,7 @@ func (s *GameService) ResolveCard(ctx context.Context, cardID uuid.UUID, correct
 - **UI Library:** Tailwind CSS + shadcn/ui components
 - **State:** React Query (TanStack Query) for server state
 - **Auth:** Validates Exchange JWT (shared secret), checks admin role in JWT + local DB
+- **i18n:** `next-intl` for admin panel localization (admin UI in English only, but manages translations for all languages)
 - **Charts:** Recharts or Chart.js for analytics dashboards
 
 ---
@@ -1227,8 +1254,8 @@ func (s *GameService) ResolveCard(ctx context.Context, cardID uuid.UUID, correct
 
 - FCM tokens are stored in the `fcm_tokens` table.
 - A notification service in Go handles token management and message dispatch.
-- Batch sending for broadcast notifications (e.g., daily basket ready).
-- Individual sending for user-specific notifications (e.g., prediction resolved).
+- Batch sending for broadcast notifications (e.g., daily basket ready), grouped by user language for localized content.
+- Individual sending for user-specific notifications (e.g., prediction resolved), using the user's language preference.
 - Token cleanup: mark inactive tokens that return errors from FCM.
 
 ---

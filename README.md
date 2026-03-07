@@ -49,6 +49,7 @@ XEX Play is a card-based sports prediction game designed to engage users during 
 - **Real Decision-Making** — 10 answers and 5 skips across 15 cards force users to evaluate risk/reward on every single card. Every card is seen, no going back.
 - **Skip Management as Strategy** — Users see all 15 cards but must skip 5. Choosing when to skip is the core strategic decision — skip now hoping for better, or answer a mediocre card to save skips?
 - **Live Sports Connection** — Cards are directly tied to real matches with real expiry times, keeping the game grounded in reality.
+- **Multi-Language First** — The app, card content, and notifications are fully localized. Users play in their preferred language.
 - **Exchange Funnel** — Every feature subtly guides users toward XEX Exchange without being intrusive.
 
 ---
@@ -82,6 +83,24 @@ The platform is designed to support multiple concurrent and sequential events:
 - Domestic leagues (Premier League, La Liga, Serie A, Bundesliga, etc.)
 - AFC Asian Cup
 - Any other sports tournament the admin configures
+
+### Supported Languages
+
+The entire experience — app UI, card questions, push notifications — is fully localized:
+
+| Language    | Code  | Priority |
+| ----------- | ----- | -------- |
+| **English** | `en`  | Launch   |
+| **Persian** | `fa`  | Launch   |
+| **Arabic**  | `ar`  | Launch   |
+| **Turkish** | `tr`  | Phase 2  |
+| **Spanish** | `es`  | Phase 2  |
+| **French**  | `fr`  | Phase 3  |
+
+- The app detects the device language and defaults to the closest supported locale, falling back to English.
+- Users can override their language preference in-app settings.
+- **Card questions are translated by the admin** — each card has a question text per supported language.
+- RTL (right-to-left) layout is fully supported for Persian and Arabic.
 
 ---
 
@@ -519,7 +538,7 @@ For major events (World Cup, Champions League), XEX Exchange funds token prize p
 ### 8.3 Card/Question Management
 
 - Create daily prediction cards (exactly 15 per day: 3 Gold + 5 Silver + 7 White).
-- Set the question text for each card.
+- Set the question text for each card **in all supported languages** (admin enters translations per language).
 - Assign card tier (Gold, Silver, White) — scoring is determined by tier.
 - For Gold cards: choose which answer (Yes/No) gets the +20 (the other gets +5).
 - For Silver cards: choose which answer gets the +15 (the other gets +10).
@@ -550,7 +569,15 @@ For major events (World Cup, Champions League), XEX Exchange funds token prize p
 - Configure leaderboard reset schedules.
 - Set up tournament prize pools.
 
-### 8.7 Analytics Dashboard
+### 8.7 Translation Management
+
+- Manage card question translations for all supported languages.
+- Translation status dashboard: see which cards are missing translations for which languages.
+- A basket cannot be published unless all its cards have translations for all active languages.
+- Manage push notification templates per language.
+- Manage static content translations (achievement names, event names, team names).
+
+### 8.8 Analytics Dashboard
 
 - Daily/weekly/monthly active users.
 - Session completion rates.
@@ -559,7 +586,7 @@ For major events (World Cup, Champions League), XEX Exchange funds token prize p
 - Exchange conversion metrics (users who navigate to exchange).
 - Referral program performance.
 
-### 8.8 Push Notification Management
+### 8.9 Push Notification Management
 
 - Send custom push notifications to all users or segments.
 - Configure automated notification triggers and timing.
