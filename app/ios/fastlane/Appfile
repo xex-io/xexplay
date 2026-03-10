@@ -1,0 +1,5 @@
+app_identifier("com.xex.play")
+apple_id("your-apple-id@example.com") # Your Apple Developer email
+team_id("YOUR_TEAM_ID") # Your Apple Developer Team ID
+
+itc_team_id("YOUR_ITC_TEAM_ID") # App Store Connect Team ID (if different)

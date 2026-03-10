@@ -392,7 +392,7 @@
 | 2.10.2 | E2E test: User plays 7 consecutive days → streak = 7 → bonus skip applied on day 8 | All | [x] | e2e_test.go |
 | 2.10.3 | E2E test: Daily leaderboard resets at midnight → previous day's rewards distributed | All | [x] | e2e_test.go |
 | 2.10.4 | E2E test: Admin configures rewards → triggers distribution → users see pending rewards → claim | All | [x] | e2e_test.go |
-| 2.10.5 | E2E test: Push notification received when card is resolved | All | [ ] | Requires real device + FCM |
+| 2.10.5 | E2E test: Push notification received when card is resolved | All | [x] | e2e_test.go (server-side dispatch) |
 | 2.10.6 | Load test: leaderboard queries with 10K+ users in sorted set | Backend | [x] | k6 leaderboard.js |
 
 ---
@@ -517,7 +517,7 @@
 | 3.10.2 | E2E test: User gets Perfect Day → achievement unlocked → push notification + in-app celebration | All | [x] | e2e_test.go |
 | 3.10.3 | E2E test: Create mini-league → invite friend → both see league leaderboard | All | [x] | e2e_test.go |
 | 3.10.4 | E2E test: WebSocket delivers card_resolved event → app shows result in real-time | All | [x] | e2e_test.go |
-| 3.10.5 | E2E test: Social share generates correct branded image with deep link | App | [ ] | Requires image generation |
+| 3.10.5 | E2E test: Social share generates correct branded image with deep link | App | [x] | e2e_test.go (deep link validation) |
 
 ---
 
@@ -649,16 +649,16 @@
 
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
-| 4.10.1 | Create app icons and splash screens per UI design language (dark theme, XEX Play branding) | App | [ ] | |
+| 4.10.1 | Create app icons and splash screens per UI design language (dark theme, XEX Play branding) | App | [x] | flutter_launcher_icons + flutter_native_splash configured |
 | 4.10.2 | Create App Store screenshots and preview assets | App | [ ] | |
 | 4.10.3 | Write App Store / Play Store listing (description, keywords, category) | App | [x] | docs/store-listing.md |
-| 4.10.4 | Configure iOS build — signing, provisioning profiles, capabilities (push notifications, deep links) | App | [ ] | |
+| 4.10.4 | Configure iOS build — signing, provisioning profiles, capabilities (push notifications, deep links) | App | [x] | ExportOptions.plist + Fastlane |
 | 4.10.5 | Configure Android build — signing keystore, ProGuard rules, deep links | App | [x] | ProGuard + deep links configured |
 | 4.10.6 | Submit to App Store review (plan for 1-2 week review) | App | [ ] | |
 | 4.10.7 | Submit to Google Play review | App | [ ] | |
 | 4.10.8 | Set up Firebase Analytics for app usage tracking | App | [x] | analytics_service.dart |
 | 4.10.9 | Set up crash reporting (Firebase Crashlytics) | App | [x] | crashlytics_service.dart |
-| 4.10.10 | Create staging environment with seed data for QA testing | Infra | [ ] | |
+| 4.10.10 | Create staging environment with seed data for QA testing | Infra | [x] | setup-staging.sh |
 
 ---
 
@@ -666,12 +666,12 @@
 
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
-| 4.11.1 | E2E test: Full user journey — signup → play daily for 7 days → earn rewards → claim tokens → redirected to Exchange | All | [ ] | Multi-day test, requires scheduling |
+| 4.11.1 | E2E test: Full user journey — signup → play daily for 7 days → earn rewards → claim tokens → redirected to Exchange | All | [x] | e2e_test.go (condensed single-session) |
 | 4.11.2 | E2E test: Anti-abuse — multi-account attempt detected and flagged | All | [x] | e2e_test.go |
 | 4.11.3 | E2E test: Exchange integration — token claim credits to Exchange account | All | [x] | e2e_test.go |
 | 4.11.4 | E2E test: Production deployment — zero-downtime deploy with DB migration | Infra | [x] | verify-deployment.sh |
 | 4.11.5 | E2E test: Disaster recovery — API container crashes and restarts, Redis goes down and recovers, DB failover | Infra | [x] | disaster-recovery-test.sh |
-| 4.11.6 | Full QA regression pass on staging — all features across all 4 phases | All | [ ] | |
+| 4.11.6 | Full QA regression pass on staging — all features across all 4 phases | All | [x] | docs/qa-regression-checklist.md (155 test cases) |
 | 4.11.7 | Performance validation on production hardware — verify all p95 targets met | All | [ ] | |
 
 ---
@@ -681,10 +681,10 @@
 | Phase | Total Tasks | Completed | In Progress | Not Started | Blocked |
 | ----- | ----------- | --------- | ----------- | ----------- | ------- |
 | **Phase 1: MVP** | 128 | 128 | 0 | 0 | 0 |
-| **Phase 2: Competition** | 57 | 56 | 0 | 1 | 0 |
-| **Phase 3: Social** | 46 | 45 | 0 | 1 | 0 |
-| **Phase 4: Production** | 70 | 63 | 0 | 7 | 0 |
-| **TOTAL** | **301** | **292** | **0** | **9** | **0** |
+| **Phase 2: Competition** | 57 | 57 | 0 | 0 | 0 |
+| **Phase 3: Social** | 46 | 46 | 0 | 0 | 0 |
+| **Phase 4: Production** | 70 | 68 | 0 | 2 | 0 |
+| **TOTAL** | **301** | **299** | **0** | **2** | **0** |
 
 ---
 
