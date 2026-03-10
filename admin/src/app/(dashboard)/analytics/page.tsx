@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface AnalyticsOverview {
   dau: number;
@@ -29,12 +30,16 @@ const defaultOverview: AnalyticsOverview = {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-100">
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </p>
-    </div>
+    <Card>
+      <CardContent className="pt-1">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-foreground">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -53,10 +58,10 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-100 mb-6">Analytics</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Analytics</h1>
 
       {isLoading ? (
-        <p className="text-gray-400 text-sm">Loading analytics...</p>
+        <p className="text-muted-foreground text-sm">Loading analytics...</p>
       ) : (
         <>
           {/* Stats Cards */}
@@ -70,81 +75,105 @@ export default function AnalyticsPage() {
 
           {/* Charts Placeholder Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                Daily Active Users (trend)
-              </h3>
-              <div className="h-48 flex items-center justify-center border border-dashed border-gray-600 rounded-md">
-                <p className="text-sm text-gray-500">Chart placeholder - DAU over time</p>
-              </div>
-            </div>
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                New Registrations (trend)
-              </h3>
-              <div className="h-48 flex items-center justify-center border border-dashed border-gray-600 rounded-md">
-                <p className="text-sm text-gray-500">Chart placeholder - registrations over time</p>
-              </div>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  Daily Active Users (trend)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48 flex items-center justify-center border border-dashed border-border rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    Chart placeholder - DAU over time
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  New Registrations (trend)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48 flex items-center justify-center border border-dashed border-border rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    Chart placeholder - registrations over time
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Session & Answer Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                Session Completion Rate
-              </h3>
-              <div className="flex items-end gap-3">
-                <span className="text-4xl font-bold text-gray-100">
-                  {overview.session_completion_rate.toFixed(1)}%
-                </span>
-                <span className="text-sm text-gray-400 mb-1">of sessions completed</span>
-              </div>
-              <div className="mt-4 w-full bg-gray-700 rounded-full h-3">
-                <div
-                  className="bg-blue-500 h-3 rounded-full transition-all"
-                  style={{ width: `${Math.min(overview.session_completion_rate, 100)}%` }}
-                />
-              </div>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  Session Completion Rate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end gap-3">
+                  <span className="text-4xl font-bold text-foreground">
+                    {overview.session_completion_rate.toFixed(1)}%
+                  </span>
+                  <span className="text-sm text-muted-foreground mb-1">
+                    of sessions completed
+                  </span>
+                </div>
+                <div className="mt-4 w-full bg-muted rounded-full h-3">
+                  <div
+                    className="bg-primary h-3 rounded-full transition-all"
+                    style={{ width: `${Math.min(overview.session_completion_rate, 100)}%` }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                Card Answer Distribution
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">Total Answers</span>
-                  <span className="text-sm font-mono text-gray-200">{dist.total.toLocaleString()}</span>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  Card Answer Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total Answers</span>
+                    <span className="text-sm font-mono text-foreground">
+                      {dist.total.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-green-400">Correct</span>
+                    <span className="text-sm font-mono text-green-400">
+                      {dist.correct.toLocaleString()} ({correctPct}%)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-red-400">Wrong</span>
+                    <span className="text-sm font-mono text-red-400">
+                      {dist.wrong.toLocaleString()} ({wrongPct}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-3 flex overflow-hidden">
+                    {dist.total > 0 && (
+                      <>
+                        <div
+                          className="bg-green-500 h-3 transition-all"
+                          style={{ width: `${correctPct}%` }}
+                        />
+                        <div
+                          className="bg-red-500 h-3 transition-all"
+                          style={{ width: `${wrongPct}%` }}
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-green-400">Correct</span>
-                  <span className="text-sm font-mono text-green-400">
-                    {dist.correct.toLocaleString()} ({correctPct}%)
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-red-400">Wrong</span>
-                  <span className="text-sm font-mono text-red-400">
-                    {dist.wrong.toLocaleString()} ({wrongPct}%)
-                  </span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-3 flex overflow-hidden">
-                  {dist.total > 0 && (
-                    <>
-                      <div
-                        className="bg-green-500 h-3 transition-all"
-                        style={{ width: `${correctPct}%` }}
-                      />
-                      <div
-                        className="bg-red-500 h-3 transition-all"
-                        style={{ width: `${wrongPct}%` }}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </>
       )}

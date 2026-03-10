@@ -3,6 +3,31 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { Search, ShieldAlert, Ban } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 
 interface UserDetail {
   id: string;
@@ -25,11 +50,18 @@ interface ActivityEntry {
   metadata?: Record<string, unknown>;
 }
 
-const statusColors: Record<string, string> = {
-  active: "bg-green-500/20 text-green-400 border border-green-500/30",
-  suspended: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
-  banned: "bg-red-500/20 text-red-400 border border-red-500/30",
-};
+function getStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (status) {
+    case "active":
+      return "default";
+    case "suspended":
+      return "secondary";
+    case "banned":
+      return "destructive";
+    default:
+      return "outline";
+  }
+}
 
 export default function ModerationPage() {
   const queryClient = useQueryClient();
@@ -91,34 +123,32 @@ export default function ModerationPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-100">User Moderation</h1>
+        <h1 className="text-2xl font-bold text-foreground">User Moderation</h1>
       </div>
 
       {/* Search */}
       <form onSubmit={handleSearch} className="mb-6">
         <div className="flex gap-3">
-          <input
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by email or user ID..."
-            className="flex-1 bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1"
           />
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
+          <Button type="submit" size="lg">
+            <Search data-icon="inline-start" />
             Search
-          </button>
+          </Button>
         </div>
       </form>
 
       {userLoading && (
-        <div className="text-center py-12 text-gray-400 text-sm">Searching...</div>
+        <div className="text-center py-12 text-muted-foreground text-sm">Searching...</div>
       )}
 
       {isError && searchTerm && (
-        <div className="text-center py-12 text-gray-400 text-sm">
+        <div className="text-center py-12 text-muted-foreground text-sm">
           User not found. Try a different email or ID.
         </div>
       )}
@@ -126,257 +156,246 @@ export default function ModerationPage() {
       {user && (
         <>
           {/* User Detail Panel */}
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
-            <div className="flex items-start gap-5">
-              <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-gray-400 text-2xl font-bold overflow-hidden flex-shrink-0">
-                {user.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.avatar_url}
-                    alt={user.display_name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  (user.display_name?.[0] || user.email?.[0] || "?").toUpperCase()
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
-                  <h2 className="text-lg font-semibold text-gray-100">
-                    {user.display_name || "Unnamed User"}
-                  </h2>
-                  <span
-                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${
-                      statusColors[user.status] || statusColors.active
-                    }`}
+          <Card className="mb-6">
+            <CardContent>
+              <div className="flex items-start gap-5">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-2xl font-bold overflow-hidden flex-shrink-0">
+                  {user.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.avatar_url}
+                      alt={user.display_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    (user.display_name?.[0] || user.email?.[0] || "?").toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h2 className="text-lg font-semibold text-foreground">
+                      {user.display_name || "Unnamed User"}
+                    </h2>
+                    <Badge variant={getStatusVariant(user.status)} className="capitalize">
+                      {user.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <p className="text-xs text-muted-foreground font-mono mt-1">ID: {user.id}</p>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Joined</p>
+                      <p className="text-sm text-foreground">
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Points</p>
+                      <p className="text-sm text-foreground font-mono">
+                        {(user.total_points ?? 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Sessions Played</p>
+                      <p className="text-sm text-foreground font-mono">
+                        {(user.sessions_played ?? 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Status</p>
+                      <p className="text-sm text-foreground capitalize">{user.status}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-2 flex-shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/20"
+                    onClick={() =>
+                      setActionModal({ type: "suspend", userId: user.id })
+                    }
                   >
-                    {user.status}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-400">{user.email}</p>
-                <p className="text-xs text-gray-500 font-mono mt-1">ID: {user.id}</p>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Joined</p>
-                    <p className="text-sm text-gray-200">
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Total Points</p>
-                    <p className="text-sm text-gray-200 font-mono">
-                      {(user.total_points ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Sessions Played</p>
-                    <p className="text-sm text-gray-200 font-mono">
-                      {(user.sessions_played ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Status</p>
-                    <p className="text-sm text-gray-200 capitalize">{user.status}</p>
-                  </div>
+                    <ShieldAlert data-icon="inline-start" />
+                    Suspend
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() =>
+                      setActionModal({ type: "ban", userId: user.id })
+                    }
+                  >
+                    <Ban data-icon="inline-start" />
+                    Ban
+                  </Button>
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2 flex-shrink-0">
-                <button
-                  onClick={() =>
-                    setActionModal({ type: "suspend", userId: user.id })
-                  }
-                  className="bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/30 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Suspend
-                </button>
-                <button
-                  onClick={() =>
-                    setActionModal({ type: "ban", userId: user.id })
-                  }
-                  className="bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Ban
-                </button>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Referral Tree */}
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
-            <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
-              Referral Tree
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Referred By</p>
-                {user.referred_by ? (
-                  <p className="text-sm text-blue-400 font-mono">{user.referred_by}</p>
-                ) : (
-                  <p className="text-sm text-gray-500">No referrer</p>
-                )}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                Referral Tree
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Referred By</p>
+                  {user.referred_by ? (
+                    <p className="text-sm text-primary font-mono">{user.referred_by}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No referrer</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    Referred Users ({(user.referrals ?? []).length})
+                  </p>
+                  {(user.referrals ?? []).length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {user.referrals.map((refId) => (
+                        <Badge key={refId} variant="secondary" className="font-mono text-xs">
+                          {refId.slice(0, 8)}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No referrals</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                  Referred Users ({(user.referrals ?? []).length})
-                </p>
-                {(user.referrals ?? []).length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {user.referrals.map((refId) => (
-                      <span
-                        key={refId}
-                        className="inline-flex px-2 py-0.5 rounded text-xs font-mono bg-gray-700 text-gray-300"
-                      >
-                        {refId.slice(0, 8)}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">No referrals</p>
-                )}
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Activity Log */}
-          <div className="bg-gray-800 shadow rounded-lg border border-gray-700 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
                 Recent Activity
-              </h3>
-            </div>
-            <table className="min-w-full divide-y divide-gray-700">
-              <thead className="bg-gray-900">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Timestamp
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Description
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {activityLoading ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center text-sm text-gray-400">
-                      Loading activity...
-                    </td>
-                  </tr>
-                ) : activity.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center text-sm text-gray-400">
-                      No activity found.
-                    </td>
-                  </tr>
-                ) : (
-                  activity.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-750 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-300">
-                        {new Date(entry.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30 capitalize">
-                          {entry.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-200">
-                        {entry.description}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Description</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activityLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-12 text-muted-foreground">
+                        Loading activity...
+                      </TableCell>
+                    </TableRow>
+                  ) : activity.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-12 text-muted-foreground">
+                        No activity found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    activity.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(entry.created_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {entry.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-foreground">
+                          {entry.description}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </>
       )}
 
       {/* Ban/Suspend Modal */}
-      {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => {
-              setActionModal(null);
-              setActionReason("");
-            }}
-          />
-          <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
-            <button
+      <Dialog
+        open={!!actionModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActionModal(null);
+            setActionReason("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="capitalize">
+              {actionModal?.type} User
+            </DialogTitle>
+            <DialogDescription>
+              This action will {actionModal?.type === "ban" ? "permanently ban" : "temporarily suspend"} the user.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="action-reason">Reason</Label>
+              <Textarea
+                id="action-reason"
+                value={actionReason}
+                onChange={(e) => setActionReason(e.target.value)}
+                placeholder="Provide a reason for this action..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
               onClick={() => {
                 setActionModal(null);
                 setActionReason("");
               }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+              Cancel
+            </Button>
+            <Button
+              variant={actionModal?.type === "ban" ? "destructive" : "default"}
+              onClick={() =>
+                actionModal && moderationMutation.mutate({
+                  userId: actionModal.userId,
+                  action: actionModal.type,
+                  reason: actionReason,
+                })
+              }
+              disabled={moderationMutation.isPending || !actionReason.trim()}
+            >
+              {moderationMutation.isPending
+                ? "Processing..."
+                : `Confirm ${actionModal?.type === "ban" ? "Ban" : "Suspend"}`}
+            </Button>
+          </DialogFooter>
 
-            <h2 className="text-lg font-semibold text-gray-100 mb-4 capitalize">
-              {actionModal.type} User
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Reason
-                </label>
-                <textarea
-                  value={actionReason}
-                  onChange={(e) => setActionReason(e.target.value)}
-                  placeholder="Provide a reason for this action..."
-                  rows={3}
-                  className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setActionModal(null);
-                  setActionReason("");
-                }}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() =>
-                  moderationMutation.mutate({
-                    userId: actionModal.userId,
-                    action: actionModal.type,
-                    reason: actionReason,
-                  })
-                }
-                disabled={moderationMutation.isPending || !actionReason.trim()}
-                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  actionModal.type === "ban"
-                    ? "bg-red-600 hover:bg-red-500 text-white"
-                    : "bg-yellow-600 hover:bg-yellow-500 text-white"
-                }`}
-              >
-                {moderationMutation.isPending
-                  ? "Processing..."
-                  : `Confirm ${actionModal.type === "ban" ? "Ban" : "Suspend"}`}
-              </button>
-            </div>
-            {moderationMutation.isError && (
-              <p className="mt-3 text-sm text-red-400">
-                Failed to {actionModal.type} user. Please try again.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+          {moderationMutation.isError && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertDescription>
+                Failed to {actionModal?.type} user. Please try again.
+              </AlertDescription>
+            </Alert>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

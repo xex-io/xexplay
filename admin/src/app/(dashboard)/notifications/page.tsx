@@ -3,6 +3,39 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { Send, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 interface NotificationHistory {
   id: string;
@@ -13,12 +46,19 @@ interface NotificationHistory {
   sent_at: string;
 }
 
+const TARGET_OPTIONS = [
+  { value: "all", label: "All Users" },
+  { value: "active", label: "Active Users (last 7 days)" },
+  { value: "new", label: "New Users (last 24h)" },
+  { value: "dormant", label: "Dormant Users (inactive 30+ days)" },
+];
+
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [target, setTarget] = useState("all");
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: history = [], isLoading } = useQuery<NotificationHistory[]>({
     queryKey: ["admin-notifications"],
@@ -37,175 +77,184 @@ export default function NotificationsPage() {
       setTitle("");
       setBody("");
       setTarget("all");
-      setShowConfirm(false);
+      setDialogOpen(false);
     },
   });
 
   function handleSend() {
     if (!title.trim() || !body.trim()) return;
-    setShowConfirm(true);
+    setDialogOpen(true);
   }
 
   function confirmSend() {
     sendMutation.mutate({ title, body, target });
   }
 
+  const targetLabel = TARGET_OPTIONS.find((o) => o.value === target)?.label ?? target;
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-100 mb-6">Notifications</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Notifications</h1>
 
       {/* Compose Form */}
-      <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-200 mb-4">Compose Notification</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-              Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Notification title"
-              className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Compose Notification</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="notif-title">Title</Label>
+              <Input
+                id="notif-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Notification title"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-              Body
-            </label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Notification body"
-              rows={4}
-              className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="notif-body">Body</Label>
+              <Textarea
+                id="notif-body"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Notification body"
+                rows={4}
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-              Target
-            </label>
-            <select
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Users</option>
-              <option value="active">Active Users (last 7 days)</option>
-              <option value="new">New Users (last 24h)</option>
-              <option value="dormant">Dormant Users (inactive 30+ days)</option>
-            </select>
-          </div>
+            <div className="space-y-1.5">
+              <Label>Target</Label>
+              <Select value={target} onValueChange={(v) => setTarget(v ?? "")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select target" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TARGET_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={handleSend}
-              disabled={!title.trim() || !body.trim() || sendMutation.isPending}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Send Notification
-            </button>
-          </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSend}
+                disabled={!title.trim() || !body.trim() || sendMutation.isPending}
+              >
+                <Send className="size-4 mr-1.5" />
+                Send Notification
+              </Button>
+            </div>
 
-          {sendMutation.isError && (
-            <p className="text-sm text-red-400">Failed to send notification. Please try again.</p>
-          )}
-          {sendMutation.isSuccess && (
-            <p className="text-sm text-green-400">Notification sent successfully.</p>
-          )}
-        </div>
-      </div>
+            {sendMutation.isError && (
+              <Alert variant="destructive">
+                <AlertCircle className="size-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                  Failed to send notification. Please try again.
+                </AlertDescription>
+              </Alert>
+            )}
+            {sendMutation.isSuccess && (
+              <Alert>
+                <CheckCircle2 className="size-4" />
+                <AlertTitle>Success</AlertTitle>
+                <AlertDescription>
+                  Notification sent successfully.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* History Table */}
-      <h2 className="text-lg font-semibold text-gray-200 mb-4">History</h2>
-      <div className="bg-gray-800 shadow rounded-lg border border-gray-700 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead className="bg-gray-900">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Title
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Target
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Delivery Count
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Sent At
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400">
-                  Loading history...
-                </td>
-              </tr>
-            ) : history.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400">
-                  No notifications sent yet.
-                </td>
-              </tr>
-            ) : (
-              history.map((n) => (
-                <tr key={n.id} className="hover:bg-gray-750 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-200">{n.title}</td>
-                  <td className="px-6 py-4 text-sm text-gray-300 capitalize">{n.target}</td>
-                  <td className="px-6 py-4 text-sm text-gray-300 font-mono">
-                    {n.delivery_count.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">
-                    {new Date(n.sent_at).toLocaleString()}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Target</TableHead>
+                <TableHead>Delivery Count</TableHead>
+                <TableHead>Sent At</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                    Loading history...
+                  </TableCell>
+                </TableRow>
+              ) : history.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                    No notifications sent yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                history.map((n) => (
+                  <TableRow key={n.id}>
+                    <TableCell className="font-medium">{n.title}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="capitalize">
+                        {n.target}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono">
+                      {n.delivery_count.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(n.sent_at).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      {/* Confirmation Modal */}
-      {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirm(false)} />
-          <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">Confirm Send</h2>
-            <div className="bg-gray-900 border border-gray-600 rounded-lg p-4 mb-4 space-y-2">
-              <p className="text-sm text-gray-300">
-                <span className="font-medium text-gray-200">Title:</span> {title}
-              </p>
-              <p className="text-sm text-gray-300">
-                <span className="font-medium text-gray-200">Target:</span>{" "}
-                <span className="capitalize">{target}</span>
-              </p>
-            </div>
-            <p className="text-sm text-gray-400 mb-4">
+      {/* Confirmation Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Send</DialogTitle>
+            <DialogDescription>
               Are you sure you want to send this notification? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-2">
+            <p className="text-sm text-foreground">
+              <span className="font-medium">Title:</span> {title}
             </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmSend}
-                disabled={sendMutation.isPending}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-              >
-                {sendMutation.isPending ? "Sending..." : "Confirm Send"}
-              </button>
-            </div>
+            <Separator />
+            <p className="text-sm text-foreground">
+              <span className="font-medium">Target:</span>{" "}
+              <span className="capitalize">{targetLabel}</span>
+            </p>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button
+              onClick={confirmSend}
+              disabled={sendMutation.isPending}
+            >
+              {sendMutation.isPending ? "Sending..." : "Confirm Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

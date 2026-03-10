@@ -3,6 +3,35 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Plus, Zap } from "lucide-react";
 
 interface RewardConfig {
   id: string;
@@ -91,350 +120,274 @@ export default function RewardsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-100">Rewards</h1>
-        {activeTab === "configs" && (
-          <button
-            onClick={() => setShowConfigModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            Create Config
-          </button>
-        )}
-        {activeTab === "distributions" && (
-          <button
-            onClick={() => setShowTriggerModal(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
-          >
-            Trigger Distribution
-          </button>
-        )}
+        <h1 className="text-2xl font-bold text-foreground">Rewards</h1>
+        <div className="flex gap-2">
+          {activeTab === "configs" && (
+            <Button onClick={() => setShowConfigModal(true)}>
+              <Plus data-icon="inline-start" />
+              Create Config
+            </Button>
+          )}
+          {activeTab === "distributions" && (
+            <Button variant="secondary" onClick={() => setShowTriggerModal(true)}>
+              <Zap data-icon="inline-start" />
+              Trigger Distribution
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-gray-800 rounded-lg p-1 w-fit">
-        {(["configs", "distributions"] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors ${
-              activeTab === tab
-                ? "bg-blue-600 text-white"
-                : "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as Tab)}
+      >
+        <TabsList className="mb-4">
+          <TabsTrigger value="configs">Configs</TabsTrigger>
+          <TabsTrigger value="distributions">Distributions</TabsTrigger>
+        </TabsList>
 
-      {/* Configs Table */}
-      {activeTab === "configs" && (
-        <div className="bg-gray-800 shadow rounded-lg border border-gray-700 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Period Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Rank Range
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Reward Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {configsLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400">
-                    Loading configs...
-                  </td>
-                </tr>
-              ) : configs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400">
-                    No reward configs found.
-                  </td>
-                </tr>
-              ) : (
-                configs.map((cfg) => (
-                  <tr key={cfg.id} className="hover:bg-gray-750 transition-colors">
-                    <td className="px-6 py-4 text-sm text-gray-200 capitalize">
-                      {cfg.period_type}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      #{cfg.rank_from} - #{cfg.rank_to}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300 capitalize">
-                      {cfg.reward_type}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300 font-mono">
-                      {cfg.amount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {cfg.is_active ? (
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/30">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {/* Configs Table */}
+        <TabsContent value="configs">
+          <div className="rounded-lg border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Period Type</TableHead>
+                  <TableHead>Rank Range</TableHead>
+                  <TableHead>Reward Type</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {configsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      Loading configs...
+                    </TableCell>
+                  </TableRow>
+                ) : configs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      No reward configs found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  configs.map((cfg) => (
+                    <TableRow key={cfg.id}>
+                      <TableCell className="capitalize">{cfg.period_type}</TableCell>
+                      <TableCell>#{cfg.rank_from} - #{cfg.rank_to}</TableCell>
+                      <TableCell className="capitalize">{cfg.reward_type}</TableCell>
+                      <TableCell className="font-mono">{cfg.amount.toLocaleString()}</TableCell>
+                      <TableCell>
+                        {cfg.is_active ? (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-500">
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Inactive</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
 
-      {/* Distributions Table */}
-      {activeTab === "distributions" && (
-        <div className="bg-gray-800 shadow rounded-lg border border-gray-700 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Period Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Period Key
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Users Count
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Total Tokens
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Distributed At
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {distributionsLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400">
-                    Loading distributions...
-                  </td>
-                </tr>
-              ) : distributions.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400">
-                    No distributions found.
-                  </td>
-                </tr>
-              ) : (
-                distributions.map((dist) => (
-                  <tr key={dist.id} className="hover:bg-gray-750 transition-colors">
-                    <td className="px-6 py-4 text-sm text-gray-200 capitalize">
-                      {dist.period_type}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300 font-mono">
-                      {dist.period_key}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      {dist.users_count.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300 font-mono">
-                      {dist.total_tokens.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      {new Date(dist.distributed_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {/* Distributions Table */}
+        <TabsContent value="distributions">
+          <div className="rounded-lg border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Period Type</TableHead>
+                  <TableHead>Period Key</TableHead>
+                  <TableHead>Users Count</TableHead>
+                  <TableHead>Total Tokens</TableHead>
+                  <TableHead>Distributed At</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {distributionsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      Loading distributions...
+                    </TableCell>
+                  </TableRow>
+                ) : distributions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      No distributions found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  distributions.map((dist) => (
+                    <TableRow key={dist.id}>
+                      <TableCell className="capitalize">{dist.period_type}</TableCell>
+                      <TableCell className="font-mono">{dist.period_key}</TableCell>
+                      <TableCell>{dist.users_count.toLocaleString()}</TableCell>
+                      <TableCell className="font-mono">{dist.total_tokens.toLocaleString()}</TableCell>
+                      <TableCell>{new Date(dist.distributed_at).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
 
-      {/* Create Config Modal */}
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfigModal(false)} />
-          <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
-            <button
-              onClick={() => setShowConfigModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      {/* Create Config Dialog */}
+      <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Reward Config</DialogTitle>
+            <DialogDescription>
+              Define a new reward configuration for a leaderboard period.
+            </DialogDescription>
+          </DialogHeader>
 
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">Create Reward Config</h2>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Period Type</Label>
+              <Select
+                value={configForm.period_type}
+                onValueChange={(val) => setConfigForm({ ...configForm, period_type: val ?? "" })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="tournament">Tournament</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Period Type
-                </label>
-                <select
-                  value={configForm.period_type}
-                  onChange={(e) => setConfigForm({ ...configForm, period_type: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="tournament">Tournament</option>
-                </select>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                    Rank From
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={configForm.rank_from}
-                    onChange={(e) => setConfigForm({ ...configForm, rank_from: Number(e.target.value) })}
-                    className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                    Rank To
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={configForm.rank_to}
-                    onChange={(e) => setConfigForm({ ...configForm, rank_to: Number(e.target.value) })}
-                    className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Reward Type
-                </label>
-                <select
-                  value={configForm.reward_type}
-                  onChange={(e) => setConfigForm({ ...configForm, reward_type: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="token">Token</option>
-                  <option value="badge">Badge</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Amount
-                </label>
-                <input
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-2">
+                <Label>Rank From</Label>
+                <Input
                   type="number"
-                  min={0}
-                  value={configForm.amount}
-                  onChange={(e) => setConfigForm({ ...configForm, amount: Number(e.target.value) })}
-                  className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min={1}
+                  value={configForm.rank_from}
+                  onChange={(e) => setConfigForm({ ...configForm, rank_from: Number(e.target.value) })}
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label>Rank To</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={configForm.rank_to}
+                  onChange={(e) => setConfigForm({ ...configForm, rank_to: Number(e.target.value) })}
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowConfigModal(false)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            <div className="space-y-2">
+              <Label>Reward Type</Label>
+              <Select
+                value={configForm.reward_type}
+                onValueChange={(val) => setConfigForm({ ...configForm, reward_type: val ?? "" })}
               >
-                Cancel
-              </button>
-              <button
-                onClick={() => createConfigMutation.mutate(configForm)}
-                disabled={createConfigMutation.isPending}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-              >
-                {createConfigMutation.isPending ? "Creating..." : "Create"}
-              </button>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="token">Token</SelectItem>
+                  <SelectItem value="badge">Badge</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            {createConfigMutation.isError && (
-              <p className="mt-3 text-sm text-red-400">Failed to create config. Please try again.</p>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Trigger Distribution Modal */}
-      {showTriggerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowTriggerModal(false)} />
-          <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
-            <button
-              onClick={() => setShowTriggerModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 transition-colors"
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                min={0}
+                value={configForm.amount}
+                onChange={(e) => setConfigForm({ ...configForm, amount: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfigModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createConfigMutation.mutate(configForm)}
+              disabled={createConfigMutation.isPending}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+              {createConfigMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+          {createConfigMutation.isError && (
+            <p className="text-sm text-destructive">Failed to create config. Please try again.</p>
+          )}
+        </DialogContent>
+      </Dialog>
 
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">Trigger Distribution</h2>
+      {/* Trigger Distribution Dialog */}
+      <Dialog open={showTriggerModal} onOpenChange={setShowTriggerModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Trigger Distribution</DialogTitle>
+            <DialogDescription>
+              Distribute rewards for a specific leaderboard period.
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Period Type
-                </label>
-                <select
-                  value={triggerForm.period_type}
-                  onChange={(e) => setTriggerForm({ ...triggerForm, period_type: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="tournament">Tournament</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Period Key
-                </label>
-                <input
-                  type="text"
-                  value={triggerForm.period_key}
-                  onChange={(e) => setTriggerForm({ ...triggerForm, period_key: e.target.value })}
-                  placeholder="e.g. 2026-03-10 or 2026-W11"
-                  className="w-full bg-gray-900 border border-gray-700 text-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Period Type</Label>
+              <Select
+                value={triggerForm.period_type}
+                onValueChange={(val) => setTriggerForm({ ...triggerForm, period_type: val ?? "" })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="tournament">Tournament</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowTriggerModal(false)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => triggerDistributionMutation.mutate(triggerForm)}
-                disabled={triggerDistributionMutation.isPending}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-              >
-                {triggerDistributionMutation.isPending ? "Distributing..." : "Trigger"}
-              </button>
+            <div className="space-y-2">
+              <Label>Period Key</Label>
+              <Input
+                type="text"
+                value={triggerForm.period_key}
+                onChange={(e) => setTriggerForm({ ...triggerForm, period_key: e.target.value })}
+                placeholder="e.g. 2026-03-10 or 2026-W11"
+              />
             </div>
-            {triggerDistributionMutation.isError && (
-              <p className="mt-3 text-sm text-red-400">Failed to trigger distribution. Please try again.</p>
-            )}
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTriggerModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => triggerDistributionMutation.mutate(triggerForm)}
+              disabled={triggerDistributionMutation.isPending}
+            >
+              {triggerDistributionMutation.isPending ? "Distributing..." : "Trigger"}
+            </Button>
+          </DialogFooter>
+          {triggerDistributionMutation.isError && (
+            <p className="text-sm text-destructive">Failed to trigger distribution. Please try again.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

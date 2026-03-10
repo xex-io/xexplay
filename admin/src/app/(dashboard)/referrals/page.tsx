@@ -2,6 +2,21 @@
 
 import { useEffect, useState } from "react";
 import apiClient from "@/lib/api-client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 interface ReferralStats {
   totalReferrals: number;
@@ -45,7 +60,9 @@ export default function ReferralsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Referral Analytics</h1>
+      <h1 className="text-2xl font-bold text-foreground">
+        Referral Analytics
+      </h1>
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -67,73 +84,77 @@ export default function ReferralsPage() {
       </div>
 
       {/* Top referrers table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Top Referrers</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Referral Count
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Completed
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rate
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                    Loading...
-                  </td>
-                </tr>
-              ) : topReferrers.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                    No referral data yet
-                  </td>
-                </tr>
-              ) : (
-                topReferrers.map((r) => (
-                  <tr key={r.userId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle>Top Referrers</CardTitle>
+        </CardHeader>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Referral Count</TableHead>
+              <TableHead>Completed</TableHead>
+              <TableHead>Rate</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : topReferrers.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  No referral data yet
+                </TableCell>
+              </TableRow>
+            ) : (
+              topReferrers.map((r) => {
+                const rate =
+                  r.referralCount > 0
+                    ? (r.completedReferrals / r.referralCount) * 100
+                    : 0;
+                return (
+                  <TableRow key={r.userId}>
+                    <TableCell className="font-medium">
                       {r.username || r.userId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.referralCount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.completedReferrals}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.referralCount > 0
-                        ? `${((r.completedReferrals / r.referralCount) * 100).toFixed(1)}%`
-                        : "0%"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    </TableCell>
+                    <TableCell>{r.referralCount}</TableCell>
+                    <TableCell>{r.completedReferrals}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={rate >= 50 ? "default" : "secondary"}
+                      >
+                        {rate.toFixed(1)}%
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </Card>
 
       {/* Referral trend placeholder */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Referral Trend</h2>
-        <div className="h-48 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
-          Chart placeholder — integrate with a charting library
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Referral Trend</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 flex items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-lg">
+            Chart placeholder — integrate with a charting library
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -148,11 +169,17 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-gray-900">
-        {loading ? "--" : value}
-      </p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {label}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-3xl font-bold text-foreground">
+          {loading ? "--" : value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

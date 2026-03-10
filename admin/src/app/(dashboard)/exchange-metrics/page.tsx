@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface ExchangeMetrics {
   navigated_to_exchange: number;
@@ -27,12 +28,16 @@ const defaultMetrics: ExchangeMetrics = {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-100">
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </p>
-    </div>
+    <Card>
+      <CardContent className="pt-1">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-foreground">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -52,10 +57,10 @@ export default function ExchangeMetricsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-100 mb-6">Exchange Metrics</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Exchange Metrics</h1>
 
       {isLoading ? (
-        <p className="text-gray-400 text-sm">Loading exchange metrics...</p>
+        <p className="text-muted-foreground text-sm">Loading exchange metrics...</p>
       ) : (
         <>
           {/* Overview Stats */}
@@ -68,75 +73,95 @@ export default function ExchangeMetricsPage() {
 
           {/* Prompt Performance */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                Prompt Click-Through Rate
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">Impressions</span>
-                  <span className="text-sm font-mono text-gray-200">
-                    {metrics.prompt_impressions.toLocaleString()}
-                  </span>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  Prompt Click-Through Rate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Impressions</span>
+                    <span className="text-sm font-mono text-foreground">
+                      {metrics.prompt_impressions.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Clicks</span>
+                    <span className="text-sm font-mono text-foreground">
+                      {metrics.prompt_clicks.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-primary">CTR</span>
+                    <span className="text-sm font-mono text-primary">{clickRate}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-3">
+                    <div
+                      className="bg-primary h-3 rounded-full transition-all"
+                      style={{ width: `${Math.min(Number(clickRate), 100)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">Clicks</span>
-                  <span className="text-sm font-mono text-gray-200">
-                    {metrics.prompt_clicks.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-blue-400">CTR</span>
-                  <span className="text-sm font-mono text-blue-400">{clickRate}%</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-blue-500 h-3 rounded-full transition-all"
-                    style={{ width: `${Math.min(Number(clickRate), 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                Trading Activity Correlation
-              </h3>
-              <div className="flex items-end gap-3 mb-4">
-                <span className="text-4xl font-bold text-gray-100">
-                  {metrics.correlation_score.toFixed(2)}
-                </span>
-                <span className="text-sm text-gray-400 mb-1">correlation score</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">Avg Trades per User</span>
-                  <span className="text-sm font-mono text-gray-200">
-                    {metrics.avg_trades_per_user.toFixed(1)}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  Trading Activity Correlation
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end gap-3 mb-4">
+                  <span className="text-4xl font-bold text-foreground">
+                    {metrics.correlation_score.toFixed(2)}
                   </span>
+                  <span className="text-sm text-muted-foreground mb-1">correlation score</span>
                 </div>
-              </div>
-            </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Avg Trades per User</span>
+                    <span className="text-sm font-mono text-foreground">
+                      {metrics.avg_trades_per_user.toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Charts Placeholder Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                Exchange Navigations (trend)
-              </h3>
-              <div className="h-48 flex items-center justify-center border border-dashed border-gray-600 rounded-md">
-                <p className="text-sm text-gray-500">Chart placeholder - navigations over time</p>
-              </div>
-            </div>
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider">
-                Conversion Funnel (trend)
-              </h3>
-              <div className="h-48 flex items-center justify-center border border-dashed border-gray-600 rounded-md">
-                <p className="text-sm text-gray-500">Chart placeholder - conversion funnel over time</p>
-              </div>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  Exchange Navigations (trend)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48 flex items-center justify-center border border-dashed border-border rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    Chart placeholder - navigations over time
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                  Conversion Funnel (trend)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48 flex items-center justify-center border border-dashed border-border rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    Chart placeholder - conversion funnel over time
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </>
       )}

@@ -3,8 +3,30 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Check, Plus, AlertCircle } from "lucide-react";
 
-interface Card {
+interface CardItem {
   id: string;
   match_id: string;
   question_text: Record<string, string>;
@@ -24,10 +46,10 @@ interface Match {
   away_team: string;
 }
 
-const tierColors: Record<string, string> = {
-  gold: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
-  silver: "bg-gray-400/20 text-gray-300 border border-gray-400/30",
-  white: "bg-white/10 text-white border border-white/20",
+const tierVariant: Record<string, "default" | "secondary" | "outline"> = {
+  gold: "default",
+  silver: "secondary",
+  white: "outline",
 };
 
 function getQuestionText(qt: Record<string, string>): string {
@@ -41,11 +63,11 @@ function truncate(text: string, len: number): string {
 
 export default function CardsPage() {
   const queryClient = useQueryClient();
-  const [resolveModal, setResolveModal] = useState<Card | null>(null);
+  const [resolveModal, setResolveModal] = useState<CardItem | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
 
-  const { data: cards = [], isLoading } = useQuery<Card[]>({
+  const { data: cards = [], isLoading } = useQuery<CardItem[]>({
     queryKey: ["admin-cards"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/cards");
@@ -81,7 +103,7 @@ export default function CardsPage() {
     },
   });
 
-  function openModal(card: Card) {
+  function openModal(card: CardItem) {
     setResolveModal(card);
     setSelectedAnswer(null);
     setConfirmStep(false);
@@ -115,99 +137,72 @@ export default function CardsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-100">Cards</h1>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+        <h1 className="text-2xl font-bold text-foreground">Cards</h1>
+        <Button size="sm">
+          <Plus className="size-4" data-icon="inline-start" />
           Create Card
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-gray-800 shadow rounded-lg border border-gray-700 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead className="bg-gray-900">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Question
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Tier
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Match
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Available Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Resolved
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Question</TableHead>
+              <TableHead>Tier</TableHead>
+              <TableHead>Match</TableHead>
+              <TableHead>Available Date</TableHead>
+              <TableHead>Resolved</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading ? (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={7}
-                  className="px-6 py-12 text-center text-sm text-gray-400"
+                  className="py-12 text-center text-muted-foreground"
                 >
                   Loading cards...
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : cards.length === 0 ? (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={7}
-                  className="px-6 py-12 text-center text-sm text-gray-400"
+                  className="py-12 text-center text-muted-foreground"
                 >
                   No cards found.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               cards.map((card) => (
-                <tr
-                  key={card.id}
-                  className="hover:bg-gray-750 transition-colors"
-                >
-                  <td className="px-6 py-4 text-sm text-gray-300 font-mono">
+                <TableRow key={card.id}>
+                  <TableCell className="font-mono text-muted-foreground">
                     {card.id.slice(0, 8)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-200 max-w-xs">
+                  </TableCell>
+                  <TableCell className="max-w-xs">
                     {truncate(getQuestionText(card.question_text), 50)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${tierColors[card.tier] || tierColors.white}`}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={tierVariant[card.tier] || "outline"}
+                      className="capitalize"
                     >
                       {card.tier}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {getMatchLabel(card.match_id)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {new Date(card.available_date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
+                  </TableCell>
+                  <TableCell>
                     {card.is_resolved ? (
-                      <span className="inline-flex items-center gap-1.5 text-green-400">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
+                      <span className="inline-flex items-center gap-1.5 text-green-500">
+                        <Check className="size-4" />
                         {card.correct_answer === true
                           ? "Yes"
                           : card.correct_answer === false
@@ -215,152 +210,145 @@ export default function CardsPage() {
                             : "-"}
                       </span>
                     ) : (
-                      <span className="text-gray-500">Pending</span>
+                      <span className="text-muted-foreground">Pending</span>
                     )}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
+                  </TableCell>
+                  <TableCell>
                     {!card.is_resolved && (
-                      <button
+                      <Button
+                        size="xs"
+                        variant="secondary"
                         onClick={() => openModal(card)}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
                       >
                         Resolve
-                      </button>
+                      </Button>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
       {/* Resolution Modal */}
-      {resolveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={closeModal}
-          />
-          <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
-            <button
-              onClick={closeModal}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+      <Dialog
+        open={resolveModal !== null}
+        onOpenChange={(open) => {
+          if (!open) closeModal();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Resolve Card</DialogTitle>
+            <DialogDescription>
+              Set the correct answer for this prediction card. This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
 
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">
-              Resolve Card
-            </h2>
-
-            <div className="space-y-3 mb-6">
+          {resolveModal && (
+            <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                   Question
-                </label>
-                <p className="mt-1 text-sm text-gray-200 leading-relaxed">
+                </Label>
+                <p className="mt-1 text-sm text-foreground leading-relaxed">
                   {getQuestionText(resolveModal.question_text)}
                 </p>
               </div>
 
               <div className="flex gap-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                     Tier
-                  </label>
+                  </Label>
                   <p className="mt-1">
-                    <span
-                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${tierColors[resolveModal.tier] || tierColors.white}`}
+                    <Badge
+                      variant={tierVariant[resolveModal.tier] || "outline"}
+                      className="capitalize"
                     >
                       {resolveModal.tier}
-                    </span>
+                    </Badge>
                   </p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                     Match
-                  </label>
-                  <p className="mt-1 text-sm text-gray-200">
+                  </Label>
+                  <p className="mt-1 text-sm text-foreground">
                     {getMatchLabel(resolveModal.match_id)}
                   </p>
                 </div>
               </div>
-            </div>
 
-            {!confirmStep ? (
-              <div>
-                <p className="text-sm text-gray-400 mb-3">
-                  What is the correct answer?
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleSelectAnswer(true)}
-                    className="flex-1 bg-green-600/20 border border-green-500/30 text-green-400 hover:bg-green-600/30 hover:border-green-500/50 px-4 py-3 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => handleSelectAnswer(false)}
-                    className="flex-1 bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 hover:border-red-500/50 px-4 py-3 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    No
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div className="bg-gray-900 border border-gray-600 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-gray-300">
-                    Are you sure the correct answer is{" "}
-                    <span
-                      className={`font-bold ${selectedAnswer ? "text-green-400" : "text-red-400"}`}
+              {!confirmStep ? (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    What is the correct answer?
+                  </p>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-green-500/30 text-green-500 hover:bg-green-500/10 hover:text-green-400"
+                      onClick={() => handleSelectAnswer(true)}
                     >
-                      {selectedAnswer ? "YES" : "NO"}
-                    </span>
-                    ?
-                  </p>
+                      Yes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                      onClick={() => handleSelectAnswer(false)}
+                    >
+                      No
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setConfirmStep(false);
-                      setSelectedAnswer(null);
-                    }}
-                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Go Back
-                  </button>
-                  <button
-                    onClick={handleConfirmResolve}
-                    disabled={resolveMutation.isPending}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    {resolveMutation.isPending ? "Resolving..." : "Confirm"}
-                  </button>
+              ) : (
+                <div>
+                  <Alert>
+                    <AlertCircle className="size-4" />
+                    <AlertDescription>
+                      Are you sure the correct answer is{" "}
+                      <span
+                        className={`font-bold ${selectedAnswer ? "text-green-500" : "text-destructive"}`}
+                      >
+                        {selectedAnswer ? "YES" : "NO"}
+                      </span>
+                      ?
+                    </AlertDescription>
+                  </Alert>
+                  <DialogFooter className="mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setConfirmStep(false);
+                        setSelectedAnswer(null);
+                      }}
+                    >
+                      Go Back
+                    </Button>
+                    <Button
+                      onClick={handleConfirmResolve}
+                      disabled={resolveMutation.isPending}
+                    >
+                      {resolveMutation.isPending ? "Resolving..." : "Confirm"}
+                    </Button>
+                  </DialogFooter>
+                  {resolveMutation.isError && (
+                    <Alert variant="destructive" className="mt-3">
+                      <AlertCircle className="size-4" />
+                      <AlertDescription>
+                        Failed to resolve card. Please try again.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
-                {resolveMutation.isError && (
-                  <p className="mt-3 text-sm text-red-400">
-                    Failed to resolve card. Please try again.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

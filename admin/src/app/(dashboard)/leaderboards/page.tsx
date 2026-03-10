@@ -3,6 +3,20 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download } from "lucide-react";
 
 interface LeaderboardEntry {
   rank: number;
@@ -42,6 +56,63 @@ function exportCSV(entries: LeaderboardEntry[], type: string, periodKey: string)
   URL.revokeObjectURL(url);
 }
 
+function LeaderboardTable({
+  entries,
+  isLoading,
+}: {
+  entries: LeaderboardEntry[];
+  isLoading: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Rank</TableHead>
+            <TableHead>User</TableHead>
+            <TableHead>Points</TableHead>
+            <TableHead>Correct Answers</TableHead>
+            <TableHead>Wrong Answers</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            <TableRow>
+              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                Loading leaderboard...
+              </TableCell>
+            </TableRow>
+          ) : entries.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                No leaderboard data found.
+              </TableCell>
+            </TableRow>
+          ) : (
+            entries.map((entry) => (
+              <TableRow key={entry.user_id}>
+                <TableCell className="font-semibold">#{entry.rank}</TableCell>
+                <TableCell>{entry.username || entry.user_id.slice(0, 8)}</TableCell>
+                <TableCell className="font-mono">{entry.points.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className="bg-green-500/10 text-green-500">
+                    {entry.correct_answers}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="destructive">
+                    {entry.wrong_answers}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export default function LeaderboardsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("daily");
   const [periodKey, setPeriodKey] = useState(todayKey());
@@ -60,107 +131,51 @@ export default function LeaderboardsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-100">Leaderboards</h1>
-        <button
+        <h1 className="text-2xl font-bold text-foreground">Leaderboards</h1>
+        <Button
           onClick={() => exportCSV(entries, activeTab, periodKey)}
           disabled={entries.length === 0}
-          className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          variant="outline"
         >
+          <Download data-icon="inline-start" />
           Export CSV
-        </button>
+        </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-gray-800 rounded-lg p-1 w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? "bg-blue-600 text-white"
-                : "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
-            }`}
-          >
-            {tabLabels[tab]}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as TabType)}
+      >
+        <div className="flex items-center gap-4 mb-4">
+          <TabsList>
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab} value={tab}>
+                {tabLabels[tab]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-      {/* Date picker for daily/weekly */}
-      {needsPeriod && (
-        <div className="mb-4">
-          <label className="text-xs font-medium text-gray-400 uppercase tracking-wider mr-3">
-            Period
-          </label>
-          <input
-            type="date"
-            value={periodKey}
-            onChange={(e) => setPeriodKey(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          {needsPeriod && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Period
+              </Label>
+              <Input
+                type="date"
+                value={periodKey}
+                onChange={(e) => setPeriodKey(e.target.value)}
+                className="w-auto"
+              />
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Table */}
-      <div className="bg-gray-800 shadow rounded-lg border border-gray-700 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead className="bg-gray-900">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Rank
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                User
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Points
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Correct Answers
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Wrong Answers
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400">
-                  Loading leaderboard...
-                </td>
-              </tr>
-            ) : entries.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400">
-                  No leaderboard data found.
-                </td>
-              </tr>
-            ) : (
-              entries.map((entry) => (
-                <tr key={entry.user_id} className="hover:bg-gray-750 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-200 font-semibold">
-                    #{entry.rank}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-200">
-                    {entry.username || entry.user_id.slice(0, 8)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-300 font-mono">
-                    {entry.points.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-green-400">
-                    {entry.correct_answers}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-red-400">
-                    {entry.wrong_answers}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+        {tabs.map((tab) => (
+          <TabsContent key={tab} value={tab}>
+            <LeaderboardTable entries={entries} isLoading={isLoading} />
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }
