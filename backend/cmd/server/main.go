@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/xex-exchange/xexplay-api/internal/config"
@@ -74,11 +75,15 @@ func main() {
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recovery())
 	router.Use(middleware.CORS(cfg.CORSOrigins))
+	router.Use(middleware.Metrics())
 
 	// Health check endpoints (no auth required)
 	healthHandler := handler.NewHealthHandler(db, rdb)
 	router.GET("/health", healthHandler.Liveness)
 	router.GET("/health/ready", healthHandler.Readiness)
+
+	// Prometheus metrics endpoint (no auth required)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Public routes
 	public := router.Group("/v1")

@@ -45,5 +45,31 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Deep link URL scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.xexplay.xexplay</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>xexplay</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Universal links / Associated domains configured in Runner.entitlements -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
+	<!-- Push notification usage description -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>We use notifications to keep you updated on match predictions, results, and rewards.</string>
+	<!-- Camera usage description (for sharing features) -->
+	<key>NSCameraUsageDescription</key>
+	<string>XEX Play needs camera access to let you capture and share your prediction results.</string>
+	<!-- Photo library usage description (for sharing features) -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>XEX Play needs photo library access to save and share your prediction results.</string>
 </dict>
 </plist>

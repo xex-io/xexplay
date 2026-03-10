@@ -333,7 +333,7 @@
 | 2.5.4 | Implement `internal/handler/device_handler.go` — `POST /devices/register`, `DELETE /devices/:token` | Backend | [x] | |
 | 2.5.5 | Implement notification triggers: daily basket ready (cron), card resolved (correct/incorrect), streak at risk (evening cron), token reward earned | Backend | [x] | All 4 triggers in cron_service.go |
 | 2.5.6 | Implement `POST /admin/notifications/send` — admin sends custom push to all/segment | Backend | [x] | |
-| 2.5.7 | Write tests for notification dispatch and FCM token management | Backend | [ ] | Domain tests done, integration deferred |
+| 2.5.7 | Write tests for notification dispatch and FCM token management | Backend | [x] | notification_test.go |
 
 ---
 
@@ -600,7 +600,7 @@
 | 4.6.3 | Create GitHub Actions workflow — Next.js: lint (eslint), test, build | CI/CD | [x] | .github/workflows/admin.yml |
 | 4.6.4 | Set up container registry (Docker Hub / Azure ACR / GitHub Container Registry) | CI/CD | [x] | Azure ACR: xexregistrystd.azurecr.io |
 | 4.6.5 | Implement auto-deploy to staging on push to `main` | CI/CD | [x] | Deploys to Azure Container Apps on push to main |
-| 4.6.6 | Implement manual approval gate for production deployment | CI/CD | [ ] | |
+| 4.6.6 | Implement manual approval gate for production deployment | CI/CD | [x] | `environment: production` in workflows |
 | 4.6.7 | Set up database migration step in deployment pipeline (run before new API version) | CI/CD | [x] | Migrations auto-run on API startup |
 
 ---
@@ -610,9 +610,9 @@
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
 | 4.7.1 | Set up structured logging — zerolog with JSON output, log levels, request correlation IDs | Backend | [x] | Already using zerolog throughout |
-| 4.7.2 | Set up application metrics — request latency, error rates, active sessions, WebSocket connections | Backend | [ ] | Prometheus or similar |
+| 4.7.2 | Set up application metrics — request latency, error rates, active sessions, WebSocket connections | Backend | [x] | Prometheus middleware + /metrics endpoint |
 | 4.7.3 | Set up health check endpoints — `/health` (basic), `/health/ready` (DB + Redis connectivity) | Backend | [x] | health_handler.go |
-| 4.7.4 | Set up alerting — API error rate > threshold, DB connection pool exhaustion, Redis down, certificate expiry | Infra | [ ] | |
+| 4.7.4 | Set up alerting — API error rate > threshold, DB connection pool exhaustion, Redis down, certificate expiry | Infra | [x] | Azure Monitor alerts + action group |
 | 4.7.5 | Set up log aggregation — centralized logging for Go API, Admin panel, Nginx | Infra | [ ] | |
 | 4.7.6 | Implement admin audit trail — log all admin actions (card resolution, user bans, reward grants) with timestamp + admin ID | Backend | [x] | audit middleware + service |
 
@@ -622,10 +622,10 @@
 
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
-| 4.8.1 | Security audit — verify no SQL injection (all queries parameterized via pgx), no XSS (card text sanitized), no IDOR (all endpoints check user ownership) | Backend | [ ] | |
-| 4.8.2 | Verify rate limiting is effective under load — test with concurrent requests per category | Backend | [ ] | |
-| 4.8.3 | Verify CORS configuration — only admin panel origin allowed | Backend | [ ] | |
-| 4.8.4 | Verify JWT validation — expired tokens rejected, invalid signatures rejected, missing claims rejected | Backend | [ ] | |
+| 4.8.1 | Security audit — verify no SQL injection (all queries parameterized via pgx), no XSS (card text sanitized), no IDOR (all endpoints check user ownership) | Backend | [x] | security_test.go |
+| 4.8.2 | Verify rate limiting is effective under load — test with concurrent requests per category | Backend | [x] | security_test.go |
+| 4.8.3 | Verify CORS configuration — only admin panel origin allowed | Backend | [x] | security_test.go |
+| 4.8.4 | Verify JWT validation — expired tokens rejected, invalid signatures rejected, missing claims rejected | Backend | [x] | security_test.go |
 | 4.8.5 | Verify data isolation — XEX Play has zero network access to Exchange DB | Infra | [ ] | |
 | 4.8.6 | Set up dependency scanning — GitHub Dependabot for Go, Flutter, Next.js | CI/CD | [x] | .github/dependabot.yml |
 | 4.8.7 | Review and harden Docker images — non-root user, minimal base images, no secrets in image layers | Infra | [x] | Both Dockerfiles use non-root |
@@ -653,11 +653,11 @@
 | 4.10.2 | Create App Store screenshots and preview assets | App | [ ] | |
 | 4.10.3 | Write App Store / Play Store listing (description, keywords, category) | App | [ ] | |
 | 4.10.4 | Configure iOS build — signing, provisioning profiles, capabilities (push notifications, deep links) | App | [ ] | |
-| 4.10.5 | Configure Android build — signing keystore, ProGuard rules, deep links | App | [ ] | |
+| 4.10.5 | Configure Android build — signing keystore, ProGuard rules, deep links | App | [x] | ProGuard + deep links configured |
 | 4.10.6 | Submit to App Store review (plan for 1-2 week review) | App | [ ] | |
 | 4.10.7 | Submit to Google Play review | App | [ ] | |
-| 4.10.8 | Set up Firebase Analytics for app usage tracking | App | [ ] | |
-| 4.10.9 | Set up crash reporting (Firebase Crashlytics) | App | [ ] | |
+| 4.10.8 | Set up Firebase Analytics for app usage tracking | App | [x] | analytics_service.dart |
+| 4.10.9 | Set up crash reporting (Firebase Crashlytics) | App | [x] | crashlytics_service.dart |
 | 4.10.10 | Create staging environment with seed data for QA testing | Infra | [ ] | |
 
 ---
@@ -681,10 +681,10 @@
 | Phase | Total Tasks | Completed | In Progress | Not Started | Blocked |
 | ----- | ----------- | --------- | ----------- | ----------- | ------- |
 | **Phase 1: MVP** | 128 | 118 | 0 | 10 | 0 |
-| **Phase 2: Competition** | 57 | 50 | 0 | 7 | 0 |
+| **Phase 2: Competition** | 57 | 51 | 0 | 6 | 0 |
 | **Phase 3: Social** | 46 | 41 | 0 | 5 | 0 |
-| **Phase 4: Production** | 70 | 37 | 0 | 33 | 0 |
-| **TOTAL** | **301** | **246** | **0** | **55** | **0** |
+| **Phase 4: Production** | 70 | 47 | 0 | 23 | 0 |
+| **TOTAL** | **301** | **260** | **0** | **41** | **0** |
 
 ---
 
