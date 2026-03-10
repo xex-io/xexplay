@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 
 interface AuthContextType {
   token: string | null;
@@ -11,15 +11,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
+function getStoredToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("admin_token");
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem("admin_token");
-    if (stored) {
-      setToken(stored);
-    }
-  }, []);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
 
   const login = useCallback((newToken: string) => {
     localStorage.setItem("admin_token", newToken);
