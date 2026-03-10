@@ -1,0 +1,63 @@
+{
+  "@@locale": "en",
+  "appName": "XEX Play",
+  "loginWithExchange": "Login with XEX Exchange",
+  "noAccount": "Don't have an account? Create one on XEX Exchange",
+  "play": "Play",
+  "leaderboard": "Leaderboard",
+  "rewards": "Rewards",
+  "profile": "Profile",
+  "startSession": "Start Today's Session",
+  "resumeSession": "Resume Session",
+  "sessionComplete": "Session Complete",
+  "cardOf": "Card {current} of {total}",
+  "@cardOf": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "answersRemaining": "{count} answers left",
+  "@answersRemaining": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "skipsRemaining": "{count} skips left",
+  "@skipsRemaining": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "noSkipsRemaining": "No skips remaining — you must answer all remaining cards",
+  "yes": "Yes",
+  "no": "No",
+  "skip": "Skip",
+  "swipeRightYes": "Swipe right for Yes",
+  "swipeLeftNo": "Swipe left for No",
+  "swipeUpSkip": "Swipe up to Skip",
+  "pointsLabel": "pts",
+  "goldTier": "Gold",
+  "silverTier": "Silver",
+  "whiteTier": "White",
+  "daily": "Daily",
+  "weekly": "Weekly",
+  "tournament": "Tournament",
+  "allTime": "All Time",
+  "friends": "Friends",
+  "rank": "Rank",
+  "points": "Points",
+  "yourRank": "Your Rank",
+  "streak": "Streak",
+  "streakDays": "{count} day streak",
+  "@streakDays": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "correctPredictions": "Correct Predictions",
+  "totalAnswered": "Total Answered",
+  "score": "Score",
+  "settings": "Settings",
+  "language": "Language",
+  "darkMode": "Dark Mode",
+  "notifications": "Notifications",
+  "logout": "Logout",
+  "error": "Something went wrong",
+  "retry": "Retry",
+  "loading": "Loading..."
+}

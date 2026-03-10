@@ -20,6 +20,7 @@
 7. [XEX Exchange Integration](#7-xex-exchange-integration)
 8. [Admin Capabilities](#8-admin-capabilities)
 9. [Monetization Strategy](#9-monetization-strategy)
+10. [UI/UX Design Language](#10-uiux-design-language)
 
 ---
 
@@ -622,6 +623,196 @@ Free Game → User Engagement → Exchange Awareness → Trading Activity → Ex
 - Paywalls or in-app purchases would **reduce the funnel** to XEX Exchange.
 - The real value is in **user lifetime value** on the exchange, not game revenue.
 - Free-to-play with exchange rewards creates a **unique competitive advantage** over paid prediction apps.
+
+---
+
+## 10. UI/UX Design Language
+
+### Design Philosophy
+
+XEX Play follows a **Coinbase-inspired design language** — clean, dark, professional, and enterprise-grade. The app must feel like it was built by a large, trusted fintech company. Every screen should convey security, quality, and confidence. No playful/cartoon aesthetics — this is a premium product backed by a real exchange.
+
+### Reference Apps
+
+| App | What to Study |
+| --- | --- |
+| **Coinbase / Coinbase Earn** | Overall visual language, card layouts, dark mode, quiz flow, token reward screens |
+| **Sorare** | Card tier visual hierarchy (Gold/Silver/White shimmer effects) |
+| **Duolingo** | Streak UI, daily progress, celebration animations |
+| **Tinder** | Swipe card stack physics, gesture feedback, card transitions |
+
+### Color System
+
+Built on a **dark-first palette** inspired by Coinbase's design system. Dark mode is the default.
+
+#### Core Palette
+
+| Token | Dark Mode | Light Mode | Usage |
+| --- | --- | --- | --- |
+| `background` | `#0A0B0D` (Woodsmoke) | `#FFFFFF` | App background |
+| `surface` | `#141519` | `#F5F8FF` | Card surfaces, bottom sheets, modals |
+| `surfaceRaised` | `#1E1F25` | `#EBEDF2` | Elevated cards, active states |
+| `primary` | `#587BFA` | `#0052FF` | Primary actions, links, active indicators |
+| `primaryBold` | `#0052FF` | `#0052FF` | High-emphasis buttons, key CTAs |
+| `positive` | `#09A85A` | `#098551` | Correct predictions, success states, streaks |
+| `negative` | `#CF202F` | `#CF202F` | Incorrect predictions, errors |
+| `warning` | `#ED702F` | `#ED702F` | Timer warnings, expiring cards |
+| `textPrimary` | `#FFFFFF` | `#0A0B0D` | Headlines, card questions |
+| `textSecondary` | `#8A8F98` | `#5B616E` | Captions, labels, metadata |
+| `textTertiary` | `#555961` | `#9DA3AE` | Disabled text, hints |
+| `border` | `#1E1F25` | `#E2E4E9` | Dividers, card outlines |
+| `borderSubtle` | `#141519` | `#F0F1F3` | Subtle separators |
+
+#### Card Tier Colors
+
+| Tier | Accent | Gradient / Effect |
+| --- | --- | --- |
+| **Gold** | `#FFD700` → `#FFA500` | Shimmering gold gradient border + subtle glow. Premium feel — metallic shine effect on card surface. |
+| **Silver** | `#C0C0C0` → `#8A9BAE` | Cool metallic gradient border. Polished steel look, lighter than Gold but still distinct. |
+| **White** | `#E2E4E9` → `#FFFFFF` | Clean, minimal border. No shimmer — subtle and calm. Safe and understated. |
+
+### Typography
+
+Use a **system font stack with a monospaced accent** — inspired by Coinbase's use of monospaced typefaces for financial/data contexts.
+
+| Style | Font | Size | Weight | Line Height | Usage |
+| --- | --- | --- | --- | --- | --- |
+| `display1` | System Sans | 32px (2rem) | 600 | 40px | Splash headlines, tournament names |
+| `title1` | System Sans | 24px (1.5rem) | 600 | 32px | Screen titles, leaderboard headers |
+| `title2` | System Sans | 20px (1.25rem) | 600 | 28px | Section headers, card tier labels |
+| `headline` | System Sans | 16px (1rem) | 600 | 24px | Card question text, button labels |
+| `body` | System Sans | 16px (1rem) | 400 | 24px | Descriptions, explanations |
+| `label` | System Sans | 14px (0.875rem) | 600 | 20px | Badges, tags, small buttons |
+| `caption` | System Sans | 13px (0.8125rem) | 400 | 16px | Timestamps, metadata, helper text |
+| `mono` | System Mono | 14px (0.875rem) | 600 | 20px | Points, scores, timers, countdowns |
+
+- **System Sans** = SF Pro (iOS) / Roboto (Android) — native feel, no custom font loading.
+- **System Mono** = SF Mono (iOS) / Roboto Mono (Android) — used for all numerical data (scores, timers, points) to give a financial-data feel.
+- All numerical displays (points, timers, leaderboard ranks) use the **mono** style for a data-dashboard aesthetic.
+- RTL languages (Persian, Arabic) use system defaults with proper mirroring.
+
+### Spacing & Layout
+
+Based on an **8px grid system** (matching Coinbase Design System):
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `xs` | 4px | Tight gaps (icon-to-label) |
+| `sm` | 8px | Inline spacing, small paddings |
+| `md` | 16px | Standard padding, card internal spacing |
+| `lg` | 24px | Section spacing, card-to-card gaps |
+| `xl` | 32px | Screen edge padding, major section breaks |
+| `xxl` | 48px | Top/bottom safe areas, hero spacing |
+
+**Layout Rules:**
+- Screen horizontal padding: `xl` (32px) on phones, responsive on tablets.
+- Card internal padding: `md` (16px) on all sides.
+- Between cards in a stack: `lg` (24px).
+- Bottom navigation bar: 56px height + safe area inset.
+
+### Border Radius
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `none` | 0px | Flat edges (dividers) |
+| `sm` | 8px | Small buttons, tags, badges |
+| `md` | 12px | Cards, input fields, bottom sheets |
+| `lg` | 16px | Modal dialogs, large cards |
+| `xl` | 24px | Floating action buttons, pill buttons |
+| `full` | 100000px | Avatars, circular indicators, round buttons |
+
+### Elevation & Shadows
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `elevation0` | none | Flat, inline elements |
+| `elevation1` | `0px 8px 12px rgba(0,0,0,0.12)` | Cards, bottom sheets |
+| `elevation2` | `0px 8px 24px rgba(0,0,0,0.12)` | Modals, overlays, floating elements |
+
+In dark mode, shadows are less visible — rely on **surface color differentiation** instead of shadows to create depth (`background` → `surface` → `surfaceRaised`).
+
+### Component Design Rules
+
+#### Prediction Cards (Core UI)
+
+- **Card stack:** Only one card visible at a time, with a subtle peek of the next card behind (2-3px offset, slightly scaled down, blurred).
+- **Card surface:** Uses `surface` color with `md` border radius. Card tier determines the border style (Gold shimmer / Silver metallic / White clean).
+- **Question text:** Centered, `headline` style, max 3 lines. If longer, scale down to `body`.
+- **Points display:** Bottom of card, `mono` style. Show both outcomes: "Yes: +20 pts / No: +5 pts". Use `positive` color for the higher-value side.
+- **Timer:** Top-right corner, circular progress ring. `mono` style. Turns `warning` color below 10 seconds. Turns `negative` below 5 seconds.
+- **Swipe indicators:** Directional arrows appear with opacity based on swipe distance. Right swipe reveals green "YES" overlay. Left swipe reveals red "NO" overlay. Up swipe reveals neutral "SKIP" overlay.
+- **Card transition:** Swiped card flies off-screen with physics-based animation (velocity-matched). Next card scales up from 0.95 to 1.0 with a spring curve.
+- **Gold card shimmer:** Animated gradient that subtly moves across the card border, like light reflecting off metal. Not distracting — elegant and premium.
+
+#### Buttons
+
+- **Primary:** `primaryBold` background, white text, `md` border radius, 48px height. Used for main CTAs ("Start Today's Session", "Claim Rewards").
+- **Secondary:** Transparent background, `primary` text, 1px `primary` border, `md` radius, 48px height.
+- **Ghost:** No background, no border, `primary` text. Used for tertiary actions.
+- **Destructive:** `negative` background, white text. Used sparingly.
+- All buttons use `headline` typography (16px, weight 600).
+- Pressed state: 0.96 scale + opacity 0.8 (quick spring animation).
+
+#### Bottom Navigation
+
+- 4 tabs: **Play**, **Leaderboard**, **Rewards**, **Profile**.
+- Dark surface (`surface` color), 56px + safe area.
+- Active tab: `primary` color icon + label. Inactive: `textTertiary`.
+- Icons: 24px, outlined style (inactive), filled (active).
+- No floating tab bar — flush with bottom edge for a professional, non-playful look.
+
+#### Leaderboard
+
+- Rows are simple list items — rank number (`mono`), avatar (32px, `full` radius), username (`label`), points (`mono`, right-aligned).
+- Top 3 have special treatment: slightly larger row, Gold/Silver/Bronze accent on rank number.
+- Current user's row is highlighted with `surfaceRaised` background and `primary` left border.
+- Sticky header with leaderboard type selector (Daily / Weekly / Tournament / All-Time) as a horizontal pill-button group.
+
+#### Session Summary / Results
+
+- Full-screen card with stats in a clean grid layout.
+- Large `display1` score at top.
+- Stats in 2-column grid: cards answered, correct predictions, streak count, rank change.
+- Each stat uses `mono` for the number and `caption` for the label.
+- "Share Results" button generates a branded image card (dark background, Gold accent, score, streak — optimized for Instagram Stories / Twitter).
+- Positive rank change: green arrow + `positive` color. Negative: red arrow + `negative`.
+
+#### Streak & Achievement Badges
+
+- Badges are 48px circular icons with a subtle glow matching their achievement color.
+- Streak badge: ring progress indicator around the badge icon.
+- Unlocked badges: full color. Locked: `textTertiary` with a lock overlay.
+- Achievement unlock: full-screen celebration overlay with confetti particles (tasteful, not over-the-top — similar to Coinbase's reward claim animation).
+
+### Motion & Animation
+
+| Element | Animation | Duration | Curve |
+| --- | --- | --- | --- |
+| Card swipe | Physics-based throw | Velocity-matched | Spring (damping: 0.8) |
+| Card enter | Scale 0.95→1.0 + fade in | 300ms | Spring (damping: 0.9) |
+| Timer pulse | Scale 1.0→1.05→1.0 | 600ms | Ease-in-out (loops below 10s) |
+| Button press | Scale 1.0→0.96 | 100ms | Ease-out |
+| Tab switch | Cross-fade content | 200ms | Ease-in-out |
+| Score count-up | Number rolls from 0 to final | 800ms | Ease-out (decelerate) |
+| Achievement unlock | Scale 0→1.1→1.0 + glow | 500ms | Spring |
+| Confetti burst | Particle physics | 2000ms | Gravity + drag |
+
+- All animations must be **subtle and professional** — never flashy or juvenile.
+- Respect `reduceMotion` accessibility setting — disable non-essential animations.
+- Card swipe must feel **physically responsive** — the card follows the finger with zero lag.
+
+### Accessibility
+
+- Minimum contrast ratio: **4.5:1** for text, **3:1** for large text and UI components.
+- All interactive elements: minimum **44x44px** touch target.
+- Screen reader labels on all swipe actions ("Swipe right for Yes, left for No, up to Skip").
+- Timer countdown announced to screen readers at 10s and 5s.
+- Support for system font scaling (up to 200%).
+- Full RTL layout mirroring for Persian and Arabic.
+
+### Overall Aesthetic Summary
+
+> **Dark, clean, trustworthy.** Think Coinbase meets a sports data dashboard. Every pixel should say "this is backed by a real exchange with real money." No rounded-cartoon icons, no playful illustrations, no bright gradients. Instead: sharp typography, monospaced numbers, metallic card tiers, and physics-based interactions. The app should feel like Bloomberg Terminal had a baby with Tinder — data-rich but swipeable, professional but fun.
 
 ---
 

@@ -1,0 +1,63 @@
+{
+  "@@locale": "fa",
+  "appName": "XEX Play",
+  "loginWithExchange": "ورود با XEX Exchange",
+  "noAccount": "حساب ندارید؟ در XEX Exchange ایجاد کنید",
+  "play": "بازی",
+  "leaderboard": "جدول رده‌بندی",
+  "rewards": "جوایز",
+  "profile": "پروفایل",
+  "startSession": "شروع بازی امروز",
+  "resumeSession": "ادامه بازی",
+  "sessionComplete": "بازی تمام شد",
+  "cardOf": "کارت {current} از {total}",
+  "@cardOf": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "answersRemaining": "{count} پاسخ باقی‌مانده",
+  "@answersRemaining": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "skipsRemaining": "{count} رد کردن باقی‌مانده",
+  "@skipsRemaining": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "noSkipsRemaining": "رد کردن تمام شد — باید به همه کارت‌های باقی‌مانده پاسخ دهید",
+  "yes": "بله",
+  "no": "خیر",
+  "skip": "رد کردن",
+  "swipeRightYes": "برای بله به راست بکشید",
+  "swipeLeftNo": "برای خیر به چپ بکشید",
+  "swipeUpSkip": "برای رد کردن به بالا بکشید",
+  "pointsLabel": "امتیاز",
+  "goldTier": "طلایی",
+  "silverTier": "نقره‌ای",
+  "whiteTier": "سفید",
+  "daily": "روزانه",
+  "weekly": "هفتگی",
+  "tournament": "تورنمنت",
+  "allTime": "همه زمان‌ها",
+  "friends": "دوستان",
+  "rank": "رتبه",
+  "points": "امتیاز",
+  "yourRank": "رتبه شما",
+  "streak": "روزهای متوالی",
+  "streakDays": "{count} روز متوالی",
+  "@streakDays": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "correctPredictions": "پیش‌بینی‌های درست",
+  "totalAnswered": "کل پاسخ‌ها",
+  "score": "امتیاز",
+  "settings": "تنظیمات",
+  "language": "زبان",
+  "darkMode": "حالت تاریک",
+  "notifications": "اعلان‌ها",
+  "logout": "خروج",
+  "error": "مشکلی پیش آمد",
+  "retry": "تلاش مجدد",
+  "loading": "در حال بارگذاری..."
+}
