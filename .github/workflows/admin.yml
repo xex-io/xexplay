@@ -5,10 +5,13 @@ on:
     branches: [main]
     paths:
       - "admin/**"
+      - ".github/workflows/admin.yml"
   pull_request:
     branches: [main]
     paths:
       - "admin/**"
+      - ".github/workflows/admin.yml"
+  workflow_dispatch:
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
