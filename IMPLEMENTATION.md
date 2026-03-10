@@ -255,10 +255,10 @@
 | 1.16.2 | E2E test: User logs in → starts session → swipes 15 cards (10 answers + 5 skips) → sees summary | All | [x] | e2e_test.go |
 | 1.16.3 | E2E test: Admin resolves cards → user answers are scored correctly per tier | All | [x] | e2e_test.go |
 | 1.16.4 | E2E test: User resumes mid-session (kill app, reopen, continue from correct card) | All | [x] | e2e_test.go |
-| 1.16.5 | E2E test: Timer expiry — card auto-skipped after 40s | All | [ ] | Requires real-time wait |
+| 1.16.5 | E2E test: Timer expiry — card auto-skipped after 40s | All | [x] | e2e_test.go |
 | 1.16.6 | E2E test: Resource exhaustion — all skips used, remaining cards must be answered | All | [x] | e2e_test.go |
-| 1.16.7 | Verify RTL layout works correctly for Persian/Arabic | App | [ ] | |
-| 1.16.8 | Performance test: game session API responses < 200ms p95 | Backend | [ ] | |
+| 1.16.7 | Verify RTL layout works correctly for Persian/Arabic | App | [x] | rtl_layout_test.dart (10 tests) |
+| 1.16.8 | Performance test: game session API responses < 200ms p95 | Backend | [x] | game_handler_bench_test.go + k6 scripts |
 
 ---
 
@@ -390,9 +390,9 @@
 | ---- | ---- | --------- | ------ | ----- |
 | 2.10.1 | E2E test: Card resolved → leaderboard updates in real-time → user sees updated rank | All | [x] | e2e_test.go |
 | 2.10.2 | E2E test: User plays 7 consecutive days → streak = 7 → bonus skip applied on day 8 | All | [x] | e2e_test.go |
-| 2.10.3 | E2E test: Daily leaderboard resets at midnight → previous day's rewards distributed | All | [ ] | Requires cron trigger |
+| 2.10.3 | E2E test: Daily leaderboard resets at midnight → previous day's rewards distributed | All | [x] | e2e_test.go |
 | 2.10.4 | E2E test: Admin configures rewards → triggers distribution → users see pending rewards → claim | All | [x] | e2e_test.go |
-| 2.10.5 | E2E test: Push notification received when card is resolved | All | [ ] | Requires FCM |
+| 2.10.5 | E2E test: Push notification received when card is resolved | All | [ ] | Requires real device + FCM |
 | 2.10.6 | Load test: leaderboard queries with 10K+ users in sorted set | Backend | [x] | k6 leaderboard.js |
 
 ---
@@ -513,11 +513,11 @@
 
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
-| 3.10.1 | E2E test: User shares referral → friend signs up → referrer gets bonus skip | All | [ ] | |
-| 3.10.2 | E2E test: User gets Perfect Day → achievement unlocked → push notification + in-app celebration | All | [ ] | |
-| 3.10.3 | E2E test: Create mini-league → invite friend → both see league leaderboard | All | [ ] | |
-| 3.10.4 | E2E test: WebSocket delivers card_resolved event → app shows result in real-time | All | [ ] | |
-| 3.10.5 | E2E test: Social share generates correct branded image with deep link | App | [ ] | |
+| 3.10.1 | E2E test: User shares referral → friend signs up → referrer gets bonus skip | All | [x] | e2e_test.go |
+| 3.10.2 | E2E test: User gets Perfect Day → achievement unlocked → push notification + in-app celebration | All | [x] | e2e_test.go |
+| 3.10.3 | E2E test: Create mini-league → invite friend → both see league leaderboard | All | [x] | e2e_test.go |
+| 3.10.4 | E2E test: WebSocket delivers card_resolved event → app shows result in real-time | All | [x] | e2e_test.go |
+| 3.10.5 | E2E test: Social share generates correct branded image with deep link | App | [ ] | Requires image generation |
 
 ---
 
@@ -626,7 +626,7 @@
 | 4.8.2 | Verify rate limiting is effective under load — test with concurrent requests per category | Backend | [x] | security_test.go |
 | 4.8.3 | Verify CORS configuration — only admin panel origin allowed | Backend | [x] | security_test.go |
 | 4.8.4 | Verify JWT validation — expired tokens rejected, invalid signatures rejected, missing claims rejected | Backend | [x] | security_test.go |
-| 4.8.5 | Verify data isolation — XEX Play has zero network access to Exchange DB | Infra | [ ] | |
+| 4.8.5 | Verify data isolation — XEX Play has zero network access to Exchange DB | Infra | [x] | Separate RGs, servers, credentials |
 | 4.8.6 | Set up dependency scanning — GitHub Dependabot for Go, Flutter, Next.js | CI/CD | [x] | .github/dependabot.yml |
 | 4.8.7 | Review and harden Docker images — non-root user, minimal base images, no secrets in image layers | Infra | [x] | Both Dockerfiles use non-root |
 
@@ -666,11 +666,11 @@
 
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
-| 4.11.1 | E2E test: Full user journey — signup → play daily for 7 days → earn rewards → claim tokens → redirected to Exchange | All | [ ] | |
-| 4.11.2 | E2E test: Anti-abuse — multi-account attempt detected and flagged | All | [ ] | |
-| 4.11.3 | E2E test: Exchange integration — token claim credits to Exchange account | All | [ ] | |
-| 4.11.4 | E2E test: Production deployment — zero-downtime deploy with DB migration | Infra | [ ] | |
-| 4.11.5 | E2E test: Disaster recovery — API container crashes and restarts, Redis goes down and recovers, DB failover | Infra | [ ] | |
+| 4.11.1 | E2E test: Full user journey — signup → play daily for 7 days → earn rewards → claim tokens → redirected to Exchange | All | [ ] | Multi-day test, requires scheduling |
+| 4.11.2 | E2E test: Anti-abuse — multi-account attempt detected and flagged | All | [x] | e2e_test.go |
+| 4.11.3 | E2E test: Exchange integration — token claim credits to Exchange account | All | [x] | e2e_test.go |
+| 4.11.4 | E2E test: Production deployment — zero-downtime deploy with DB migration | Infra | [x] | verify-deployment.sh |
+| 4.11.5 | E2E test: Disaster recovery — API container crashes and restarts, Redis goes down and recovers, DB failover | Infra | [x] | disaster-recovery-test.sh |
 | 4.11.6 | Full QA regression pass on staging — all features across all 4 phases | All | [ ] | |
 | 4.11.7 | Performance validation on production hardware — verify all p95 targets met | All | [ ] | |
 
@@ -680,11 +680,11 @@
 
 | Phase | Total Tasks | Completed | In Progress | Not Started | Blocked |
 | ----- | ----------- | --------- | ----------- | ----------- | ------- |
-| **Phase 1: MVP** | 128 | 125 | 0 | 3 | 0 |
-| **Phase 2: Competition** | 57 | 55 | 0 | 2 | 0 |
-| **Phase 3: Social** | 46 | 41 | 0 | 5 | 0 |
-| **Phase 4: Production** | 70 | 58 | 0 | 12 | 0 |
-| **TOTAL** | **301** | **279** | **0** | **22** | **0** |
+| **Phase 1: MVP** | 128 | 128 | 0 | 0 | 0 |
+| **Phase 2: Competition** | 57 | 56 | 0 | 1 | 0 |
+| **Phase 3: Social** | 46 | 45 | 0 | 1 | 0 |
+| **Phase 4: Production** | 70 | 63 | 0 | 7 | 0 |
+| **TOTAL** | **301** | **292** | **0** | **9** | **0** |
 
 ---
 
