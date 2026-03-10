@@ -52,6 +52,7 @@ var (
 			Help:      "Number of active game sessions.",
 		},
 	)
+
 )
 
 // Metrics returns a Gin middleware that records HTTP request metrics.

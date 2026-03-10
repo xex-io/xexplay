@@ -9,6 +9,7 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/xex-exchange/xexplay-api/internal/domain"
+	"github.com/xex-exchange/xexplay-api/internal/pkg/metrics"
 )
 
 const cacheTTL = 24 * time.Hour
@@ -34,10 +35,13 @@ func (r *CacheRepo) GetSession(ctx context.Context, userID, date string) (*domai
 	data, err := rdb.Get(ctx, sessionKey(userID, date)).Bytes()
 	if err != nil {
 		if err == goredis.Nil {
+			metrics.CacheMissesTotal.WithLabelValues("session").Inc()
 			return nil, nil
 		}
 		return nil, fmt.Errorf("cache get session: %w", err)
 	}
+
+	metrics.CacheHitsTotal.WithLabelValues("session").Inc()
 
 	var session domain.UserSession
 	if err := json.Unmarshal(data, &session); err != nil {
@@ -72,10 +76,13 @@ func (r *CacheRepo) GetBasket(ctx context.Context, date string) (string, error) 
 	data, err := rdb.Get(ctx, basketKey(date)).Result()
 	if err != nil {
 		if err == goredis.Nil {
+			metrics.CacheMissesTotal.WithLabelValues("basket").Inc()
 			return "", nil
 		}
 		return "", fmt.Errorf("cache get basket: %w", err)
 	}
+
+	metrics.CacheHitsTotal.WithLabelValues("basket").Inc()
 	return data, nil
 }
 

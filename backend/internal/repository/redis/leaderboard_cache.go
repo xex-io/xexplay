@@ -9,6 +9,7 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/xex-exchange/xexplay-api/internal/domain"
+	"github.com/xex-exchange/xexplay-api/internal/pkg/metrics"
 )
 
 type LeaderboardCache struct {
@@ -39,9 +40,16 @@ func (c *LeaderboardCache) GetTopN(ctx context.Context, key string, n int64) ([]
 	results, err := rdb.ZRevRangeWithScores(ctx, key, 0, n-1).Result()
 	if err != nil {
 		if err == goredis.Nil {
+			metrics.CacheMissesTotal.WithLabelValues("leaderboard").Inc()
 			return nil, nil
 		}
 		return nil, fmt.Errorf("leaderboard cache get top n: %w", err)
+	}
+
+	if len(results) == 0 {
+		metrics.CacheMissesTotal.WithLabelValues("leaderboard").Inc()
+	} else {
+		metrics.CacheHitsTotal.WithLabelValues("leaderboard").Inc()
 	}
 
 	rows := make([]domain.LeaderboardRow, 0, len(results))
@@ -67,10 +75,12 @@ func (c *LeaderboardCache) GetUserRank(ctx context.Context, key string, userID s
 	rank, err := rdb.ZRevRank(ctx, key, userID).Result()
 	if err != nil {
 		if err == goredis.Nil {
+			metrics.CacheMissesTotal.WithLabelValues("leaderboard").Inc()
 			return -1, nil
 		}
 		return -1, fmt.Errorf("leaderboard cache get user rank: %w", err)
 	}
+	metrics.CacheHitsTotal.WithLabelValues("leaderboard").Inc()
 	return rank, nil
 }
 
@@ -81,10 +91,12 @@ func (c *LeaderboardCache) GetUserScore(ctx context.Context, key string, userID 
 	score, err := rdb.ZScore(ctx, key, userID).Result()
 	if err != nil {
 		if err == goredis.Nil {
+			metrics.CacheMissesTotal.WithLabelValues("leaderboard").Inc()
 			return 0, nil
 		}
 		return 0, fmt.Errorf("leaderboard cache get user score: %w", err)
 	}
+	metrics.CacheHitsTotal.WithLabelValues("leaderboard").Inc()
 	return score, nil
 }
 
