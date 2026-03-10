@@ -90,7 +90,8 @@ func (s *RewardService) GetRewardHistory(ctx context.Context, userID uuid.UUID, 
 }
 
 // ClaimReward claims a pending reward for a user.
-// Enforces minimum account age (7 days) and reward hold period (24 hours).
+// Enforces minimum account age (7 days), reward hold period (24 hours),
+// and Exchange account verification for token/trading_fee_discount rewards.
 func (s *RewardService) ClaimReward(ctx context.Context, distributionID, userID uuid.UUID) error {
 	// Check minimum account age
 	user, err := s.userRepo.FindByID(ctx, userID)
@@ -116,10 +117,52 @@ func (s *RewardService) ClaimReward(ctx context.Context, distributionID, userID 
 		return fmt.Errorf("Rewards can be claimed after 24 hours")
 	}
 
+	// Exchange account verification for reward types that interact with Exchange.
+	// Token rewards and trading fee discounts require a verified Exchange account in good standing.
+	if dist.RewardType == domain.RewardToken || dist.RewardType == domain.RewardTradingFeeDiscount {
+		if err := s.verifyExchangeAccount(user); err != nil {
+			return err
+		}
+	}
+
 	if err := s.rewardRepo.ClaimReward(ctx, distributionID, userID); err != nil {
 		return fmt.Errorf("claim reward: %w", err)
 	}
 	return nil
+}
+
+// verifyExchangeAccount checks that the linked Exchange account is in good standing
+// before allowing Exchange-related reward claims (tokens, trading fee discounts).
+func (s *RewardService) verifyExchangeAccount(user *domain.User) error {
+	// Check that the user has an active Exchange account status.
+	// When no Exchange account is linked, exchange_status is empty.
+	if user.ExchangeStatus == "" || user.ExchangeStatus == domain.ExchangeStatusUnlinked {
+		return fmt.Errorf("Exchange account must be linked to claim this reward. Visit xex.exchange to create an account")
+	}
+
+	if user.ExchangeStatus == domain.ExchangeStatusSuspended {
+		return fmt.Errorf("Exchange account is suspended. Contact support for assistance")
+	}
+
+	if user.ExchangeStatus == domain.ExchangeStatusRestricted {
+		return fmt.Errorf("Exchange account is restricted. Contact support for assistance")
+	}
+
+	// Ensure account is in active/good standing
+	if !user.IsExchangeAccountGoodStanding() {
+		return fmt.Errorf("Exchange account must be active and at least 7 days old to claim this reward")
+	}
+
+	return nil
+}
+
+// GetDistributionByID returns a single reward distribution by its ID.
+func (s *RewardService) GetDistributionByID(ctx context.Context, distributionID uuid.UUID) (*domain.RewardDistribution, error) {
+	dist, err := s.rewardRepo.FindDistributionByID(ctx, distributionID)
+	if err != nil {
+		return nil, fmt.Errorf("get distribution: %w", err)
+	}
+	return dist, nil
 }
 
 // CreditReward marks a claimed reward as credited (after Exchange API confirms).
@@ -148,4 +191,37 @@ func (s *RewardService) ListAllConfigs(ctx context.Context) ([]domain.RewardConf
 // GetDistributionHistory returns all distributions with pagination (admin).
 func (s *RewardService) GetDistributionHistory(ctx context.Context, limit, offset int) ([]domain.RewardDistribution, error) {
 	return s.rewardRepo.FindDistributionHistory(ctx, limit, offset)
+}
+
+// GrantTradingFeeDiscount creates a trading fee discount reward for a user.
+// discountPercent is the fee reduction (e.g. 10.0 = 10% off).
+// This can be triggered by leaderboard placement, achievements, or admin actions.
+func (s *RewardService) GrantTradingFeeDiscount(ctx context.Context, userID uuid.UUID, discountPercent float64, periodType, periodKey string) error {
+	dist := &domain.RewardDistribution{
+		ID:         uuid.New(),
+		UserID:     userID,
+		PeriodType: periodType,
+		PeriodKey:  periodKey,
+		RewardType: domain.RewardTradingFeeDiscount,
+		Amount:     discountPercent,
+		Rank:       0,
+		Status:     domain.StatusPending,
+	}
+
+	if err := s.rewardRepo.CreateDistribution(ctx, dist); err != nil {
+		return fmt.Errorf("create trading fee discount distribution: %w", err)
+	}
+
+	// Notify the user via WebSocket
+	if s.hub != nil {
+		s.hub.SendToUser(userID, ws.Message{
+			Type: "reward_earned",
+			Data: map[string]interface{}{
+				"reward_type":      domain.RewardTradingFeeDiscount,
+				"discount_percent": discountPercent,
+			},
+		})
+	}
+
+	return nil
 }

@@ -1,16 +1,44 @@
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/api_constants.dart';
 
-/// FCM (Firebase Cloud Messaging) service placeholder.
+/// Top-level handler for background/terminated messages.
 ///
-/// Actual Firebase initialization requires native platform configuration
-/// (google-services.json for Android, GoogleService-Info.plist for iOS).
-/// This class defines the interface and registers the device token with the
-/// backend. Replace the placeholder logging with real Firebase calls once
-/// native config is in place.
+/// Must be a top-level function (not a class method) so the Dart isolate
+/// can locate it when the app is not running.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  developer.log(
+    '[FcmService] Background message: ${message.messageId}',
+  );
+}
+
+/// Callback invoked when a notification is tapped (background or terminated).
+///
+/// The [route] is the deep-link path extracted from the notification data
+/// (e.g. `/leaderboard`, `/play/session`). If no route is present the
+/// callback is still invoked with `null` so the app can decide a default.
+typedef NotificationTapCallback = void Function(String? route, Map<String, dynamic> data);
+
+/// Callback invoked when a foreground notification arrives and should be
+/// displayed as an in-app banner.
+typedef ForegroundNotificationCallback = void Function(
+  String? title,
+  String? body,
+  Map<String, dynamic> data,
+);
+
+/// FCM (Firebase Cloud Messaging) service.
+///
+/// Handles initialisation, permission requests, token management, and
+/// dispatches incoming messages to registered callbacks.
 class FcmService {
   FcmService(this._dio);
 
@@ -18,27 +46,62 @@ class FcmService {
 
   String? _currentToken;
 
-  /// Initialise the FCM service.
-  ///
-  /// In production this would call `Firebase.initializeApp()` and
-  /// `FirebaseMessaging.instance`.
+  NotificationTapCallback? onNotificationTap;
+  ForegroundNotificationCallback? onForegroundNotification;
+
+  /// Initialise Firebase and wire up all message listeners.
   Future<void> init() async {
-    developer.log('[FcmService] FCM would be initialized here');
-    // TODO: Firebase.initializeApp();
-    // TODO: listen for onTokenRefresh and call _onTokenRefresh
+    await Firebase.initializeApp();
+    developer.log('[FcmService] Firebase initialized');
+
+    // Register the background handler.
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // --- Foreground messages ---
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+    // --- Notification taps (app was in background) ---
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+
+    // --- Notification tap that launched a terminated app ---
+    final initialMessage =
+        await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) {
+      _handleNotificationTap(initialMessage);
+    }
+
+    // Listen for token refresh.
+    FirebaseMessaging.instance.onTokenRefresh.listen(onTokenRefresh);
+
+    // Show notification heads-up banners while in foreground on iOS/Android.
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
   }
 
   /// Request notification permissions from the OS.
   Future<bool> requestPermission() async {
     developer.log('[FcmService] Requesting notification permission');
-    // TODO: FirebaseMessaging.instance.requestPermission()
-    return true;
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+    final granted =
+        settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional;
+    developer.log('[FcmService] Permission granted: $granted');
+    return granted;
   }
 
   /// Retrieve the current FCM registration token.
   Future<String?> getToken() async {
-    developer.log('[FcmService] Getting FCM token');
-    // TODO: _currentToken = await FirebaseMessaging.instance.getToken();
+    _currentToken = await FirebaseMessaging.instance.getToken();
+    developer.log('[FcmService] Token: $_currentToken');
     return _currentToken;
   }
 
@@ -63,17 +126,47 @@ class FcmService {
   }
 
   /// Called when the FCM token is refreshed. Re-registers with the backend.
-  ///
-  /// Wire this up as the callback for `FirebaseMessaging.instance.onTokenRefresh`.
-  // ignore: unused_element
   Future<void> onTokenRefresh(String newToken) async {
     developer.log('[FcmService] Token refreshed, re-registering');
     await registerToken(newToken);
   }
 
-  /// Simple platform detection string for the registration payload.
+  // ---------------------------------------------------------------------------
+  // Message handlers
+  // ---------------------------------------------------------------------------
+
+  /// Handle a message received while the app is in the foreground.
+  void _handleForegroundMessage(RemoteMessage message) {
+    developer.log(
+      '[FcmService] Foreground message: ${message.messageId}',
+    );
+    final notification = message.notification;
+    if (onForegroundNotification != null) {
+      onForegroundNotification!(
+        notification?.title,
+        notification?.body,
+        message.data,
+      );
+    }
+  }
+
+  /// Handle a notification tap that opened the app from background or
+  /// terminated state.
+  void _handleNotificationTap(RemoteMessage message) {
+    developer.log(
+      '[FcmService] Notification tapped: ${message.messageId}',
+    );
+    final route = message.data['route'] as String?;
+    if (onNotificationTap != null) {
+      onNotificationTap!(route, message.data);
+    }
+  }
+
+  /// Platform string for the registration payload.
   String get _platform {
-    // In real code you would use `Platform.isIOS` etc.
+    if (kIsWeb) return 'web';
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isAndroid) return 'android';
     return 'unknown';
   }
 }

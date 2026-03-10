@@ -23,6 +23,7 @@ func (r *UserRepo) FindByXexUserID(ctx context.Context, xexUserID uuid.UUID) (*d
 	query := `
 		SELECT id, xex_user_id, display_name, email, avatar_url, role,
 		       referral_code, referred_by, language, total_points, is_active,
+		       COALESCE(trading_tier, ''), COALESCE(exchange_status, ''),
 		       created_at, updated_at
 		FROM users
 		WHERE xex_user_id = $1`
@@ -31,6 +32,7 @@ func (r *UserRepo) FindByXexUserID(ctx context.Context, xexUserID uuid.UUID) (*d
 	err := r.db.Pool.QueryRow(ctx, query, xexUserID).Scan(
 		&u.ID, &u.XexUserID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Role,
 		&u.ReferralCode, &u.ReferredBy, &u.Language, &u.TotalPoints, &u.IsActive,
+		&u.TradingTier, &u.ExchangeStatus,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -46,8 +48,9 @@ func (r *UserRepo) Upsert(ctx context.Context, u *domain.User) error {
 	query := `
 		INSERT INTO users (id, xex_user_id, display_name, email, avatar_url, role,
 		                    referral_code, referred_by, language, total_points, is_active,
+		                    trading_tier, exchange_status,
 		                    created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
 		ON CONFLICT (xex_user_id) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			email        = EXCLUDED.email,
@@ -59,6 +62,7 @@ func (r *UserRepo) Upsert(ctx context.Context, u *domain.User) error {
 	err := r.db.Pool.QueryRow(ctx, query,
 		u.ID, u.XexUserID, u.DisplayName, u.Email, u.AvatarURL, u.Role,
 		u.ReferralCode, u.ReferredBy, u.Language, u.TotalPoints, u.IsActive,
+		u.TradingTier, u.ExchangeStatus,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert user: %w", err)
@@ -70,6 +74,7 @@ func (r *UserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, er
 	query := `
 		SELECT id, xex_user_id, display_name, email, avatar_url, role,
 		       referral_code, referred_by, language, total_points, is_active,
+		       COALESCE(trading_tier, ''), COALESCE(exchange_status, ''),
 		       created_at, updated_at
 		FROM users
 		WHERE id = $1`
@@ -78,6 +83,7 @@ func (r *UserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, er
 	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
 		&u.ID, &u.XexUserID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Role,
 		&u.ReferralCode, &u.ReferredBy, &u.Language, &u.TotalPoints, &u.IsActive,
+		&u.TradingTier, &u.ExchangeStatus,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -109,6 +115,7 @@ func (r *UserRepo) FindByReferralCode(ctx context.Context, code string) (*domain
 	query := `
 		SELECT id, xex_user_id, display_name, email, avatar_url, role,
 		       referral_code, referred_by, language, total_points, is_active,
+		       COALESCE(trading_tier, ''), COALESCE(exchange_status, ''),
 		       created_at, updated_at
 		FROM users
 		WHERE referral_code = $1`
@@ -117,6 +124,7 @@ func (r *UserRepo) FindByReferralCode(ctx context.Context, code string) (*domain
 	err := r.db.Pool.QueryRow(ctx, query, code).Scan(
 		&u.ID, &u.XexUserID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Role,
 		&u.ReferralCode, &u.ReferredBy, &u.Language, &u.TotalPoints, &u.IsActive,
+		&u.TradingTier, &u.ExchangeStatus,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -147,6 +155,7 @@ func (r *UserRepo) FindByDeviceIDOrIP(ctx context.Context, userID uuid.UUID, dev
 	query := `
 		SELECT id, xex_user_id, display_name, email, avatar_url, role,
 		       referral_code, referred_by, language, total_points, is_active,
+		       COALESCE(trading_tier, ''), COALESCE(exchange_status, ''),
 		       created_at, updated_at
 		FROM users
 		WHERE id != $1
@@ -164,6 +173,7 @@ func (r *UserRepo) FindByDeviceIDOrIP(ctx context.Context, userID uuid.UUID, dev
 		if err := rows.Scan(
 			&u.ID, &u.XexUserID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Role,
 			&u.ReferralCode, &u.ReferredBy, &u.Language, &u.TotalPoints, &u.IsActive,
+			&u.TradingTier, &u.ExchangeStatus,
 			&u.CreatedAt, &u.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
@@ -174,6 +184,40 @@ func (r *UserRepo) FindByDeviceIDOrIP(ctx context.Context, userID uuid.UUID, dev
 		return nil, fmt.Errorf("iterate users: %w", err)
 	}
 	return users, nil
+}
+
+// UpdateTradingTier updates the trading tier for a user (set by Exchange sync or admin).
+func (r *UserRepo) UpdateTradingTier(ctx context.Context, id uuid.UUID, tradingTier string) error {
+	query := `
+		UPDATE users
+		SET trading_tier = $2, updated_at = NOW()
+		WHERE id = $1`
+
+	ct, err := r.db.Pool.Exec(ctx, query, id, tradingTier)
+	if err != nil {
+		return fmt.Errorf("update trading tier: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("update trading tier: user not found")
+	}
+	return nil
+}
+
+// UpdateExchangeStatus updates the Exchange account status for a user.
+func (r *UserRepo) UpdateExchangeStatus(ctx context.Context, id uuid.UUID, exchangeStatus string) error {
+	query := `
+		UPDATE users
+		SET exchange_status = $2, updated_at = NOW()
+		WHERE id = $1`
+
+	ct, err := r.db.Pool.Exec(ctx, query, id, exchangeStatus)
+	if err != nil {
+		return fmt.Errorf("update exchange status: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("update exchange status: user not found")
+	}
+	return nil
 }
 
 func (r *UserRepo) GetStats(ctx context.Context, userID uuid.UUID) (*domain.UserStats, error) {

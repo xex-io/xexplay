@@ -340,7 +340,7 @@ func initServices(cfg *config.Config, repos *repositories, wsHub *ws.Hub) *servi
 
 	return &services{
 		Auth:         service.NewAuthService(repos.User, referralSvc, cfg.JWTSecret),
-		Game:         service.NewGameService(repos.Session, repos.Answer, repos.Basket, repos.Card, repos.Cache, shuffleSvc, streakSvc, achievementSvc),
+		Game:         service.NewGameService(repos.Session, repos.Answer, repos.Basket, repos.Card, repos.User, repos.Cache, shuffleSvc, streakSvc, achievementSvc),
 		Card:         service.NewCardService(repos.Card, repos.Answer, leaderboardSvc, wsHub),
 		Shuffle:      shuffleSvc,
 		Leaderboard:  leaderboardSvc,
@@ -402,6 +402,6 @@ func initHandlers(cfg *config.Config, svc *services, repos *repositories, wsHub 
 		AdminReward:       adminHandler.NewRewardHandler(svc.Reward),
 		AdminNotification: adminHandler.NewNotificationHandler(svc.Notification),
 		AdminAudit:        adminHandler.NewAuditHandler(svc.Audit, svc.Abuse),
-		Exchange:          handler.NewExchangeHandler(svc.Reward),
+		Exchange:          handler.NewExchangeHandler(svc.Reward, repos.User),
 	}
 }

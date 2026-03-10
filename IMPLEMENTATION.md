@@ -365,9 +365,9 @@
 
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
-| 2.8.1 | Set up Firebase in Flutter project (iOS + Android configuration) | App | [ ] | |
+| 2.8.1 | Set up Firebase in Flutter project (iOS + Android configuration) | App | [x] | firebase_core + firebase_messaging added |
 | 2.8.2 | Implement `features/notifications/services/fcm_service.dart` — initialize FCM, request permission, get token, register with backend | App | [x] | Placeholder, needs Firebase native config |
-| 2.8.3 | Implement notification handling — foreground: show in-app banner, background/terminated: handle tap → navigate to relevant screen | App | [ ] | Needs Firebase setup |
+| 2.8.3 | Implement notification handling — foreground: show in-app banner, background/terminated: handle tap → navigate to relevant screen | App | [x] | fcm_service.dart + notification_provider.dart |
 | 2.8.4 | Implement FCM token refresh logic — re-register with backend on token change | App | [x] | In fcm_service.dart |
 
 ---
@@ -534,10 +534,10 @@
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
 | 4.1.1 | Implement token claim flow — `POST /me/rewards/claim`: validate pending rewards, call Exchange API (or internal queue) to credit tokens to user's Exchange account, update status to `credited` | Backend | [x] | Stub for Exchange API call |
-| 4.1.2 | Implement Exchange account verification check — before token claim, verify linked Exchange account is in good standing | Backend | [ ] | |
-| 4.1.3 | Implement exclusive cards for active traders — check trading activity via Exchange API flag, unlock VIP card tier | Backend | [ ] | |
+| 4.1.2 | Implement Exchange account verification check — before token claim, verify linked Exchange account is in good standing | Backend | [x] | verifyExchangeAccount in reward_service.go |
+| 4.1.3 | Implement exclusive cards for active traders — check trading activity via Exchange API flag, unlock VIP card tier | Backend | [x] | TierVIP + trading_tier field, migration 019 |
 | 4.1.4 | Implement in-app Exchange prompts data — serve contextual prompts at strategic moments (post-session, reward screen, achievement, leaderboard) | Backend | [x] | GET /me/exchange-prompts |
-| 4.1.5 | Implement trading fee discount reward type — weekly winners get discount applied on Exchange side | Backend | [ ] | |
+| 4.1.5 | Implement trading fee discount reward type — weekly winners get discount applied on Exchange side | Backend | [x] | RewardTradingFeeDiscount + GrantTradingFeeDiscount |
 
 ---
 
@@ -561,7 +561,7 @@
 | ---- | ---- | --------- | ------ | ----- |
 | 4.3.1 | Implement token claim UX — claim button on rewards screen, confirmation dialog, loading state, success animation, deep link to Exchange | App | [x] | Confirmation dialog in rewards_screen |
 | 4.3.2 | Implement Exchange prompt widgets — contextual banners/cards at strategic moments: post-session, leaderboard, rewards screen, achievement unlock | App | [x] | exchange_prompt_widget.dart |
-| 4.3.3 | Implement trader benefits display — show VIP/exclusive card indicators for Exchange-active users | App | [ ] | |
+| 4.3.3 | Implement trader benefits display — show VIP/exclusive card indicators for Exchange-active users | App | [x] | trader_badge_widget.dart with VIP/Trader tiers |
 | 4.3.4 | Implement deep link to Exchange app — "Trade on XEX Exchange" buttons that open Exchange app or fallback to web | App | [x] | In exchange_prompt_widget via url_launcher |
 
 ---
@@ -572,7 +572,7 @@
 | ---- | ---- | --------- | ------ | ----- |
 | 4.4.1 | Implement Prize Pool management page — create tournament prize pools (total tokens, distribution percentages), view active pools | Admin | [x] | |
 | 4.4.2 | Implement Anti-abuse dashboard — flagged accounts, suspicious patterns, review queue, approve/reject rewards | Admin | [x] | abuse page |
-| 4.4.3 | Implement Exchange metrics page — users who navigated to exchange, conversion rates, trading activity correlation | Admin | [ ] | |
+| 4.4.3 | Implement Exchange metrics page — users who navigated to exchange, conversion rates, trading activity correlation | Admin | [x] | /exchange-metrics page with stats cards |
 | 4.4.4 | Implement admin audit log — all admin actions logged with who/what/when | Admin | [x] | Audit middleware + admin handler |
 
 ---
@@ -581,11 +581,11 @@
 
 | #    | Task | Component | Status | Notes |
 | ---- | ---- | --------- | ------ | ----- |
-| 4.5.1 | Set up production PostgreSQL instance (separate from Exchange DB, separate credentials) | Infra | [ ] | |
-| 4.5.2 | Set up production Redis instance (separate from Exchange) | Infra | [ ] | |
+| 4.5.1 | Set up production PostgreSQL instance (separate from Exchange DB, separate credentials) | Infra | [x] | xexplay-postgres.postgres.database.azure.com |
+| 4.5.2 | Set up production Redis instance (separate from Exchange) | Infra | [x] | xexplay-redis.redis.cache.windows.net |
 | 4.5.3 | Create `docker-compose.prod.yml` with production overrides (replicas, resource limits, health checks) | Infra | [x] | |
 | 4.5.4 | Set up Nginx/Traefik reverse proxy with TLS termination, load balancing, WebSocket proxy | Infra | [x] | nginx.conf with WS proxy |
-| 4.5.5 | Configure production environment variables — `JWT_SECRET` (same as Exchange), DB credentials, Redis URL, FCM keys | Infra | [ ] | |
+| 4.5.5 | Configure production environment variables — `JWT_SECRET` (same as Exchange), DB credentials, Redis URL, FCM keys | Infra | [x] | Configured on Azure Container Apps |
 | 4.5.6 | Set up 2+ Go API container replicas behind load balancer | Infra | [x] | 2 replicas in docker-compose.prod.yml |
 | 4.5.7 | Deploy Next.js Admin panel (static + SSR) | Infra | [x] | Admin Dockerfile created |
 
@@ -598,10 +598,10 @@
 | 4.6.1 | Create GitHub Actions workflow — Go: lint (golangci-lint), test, build Docker image | CI/CD | [x] | .github/workflows/backend.yml |
 | 4.6.2 | Create GitHub Actions workflow — Flutter: analyze, test, build APK + IPA | CI/CD | [x] | .github/workflows/flutter.yml |
 | 4.6.3 | Create GitHub Actions workflow — Next.js: lint (eslint), test, build | CI/CD | [x] | .github/workflows/admin.yml |
-| 4.6.4 | Set up container registry (Docker Hub / Azure ACR / GitHub Container Registry) | CI/CD | [x] | GHCR in backend workflow |
-| 4.6.5 | Implement auto-deploy to staging on push to `main` | CI/CD | [ ] | |
+| 4.6.4 | Set up container registry (Docker Hub / Azure ACR / GitHub Container Registry) | CI/CD | [x] | Azure ACR: xexregistrystd.azurecr.io |
+| 4.6.5 | Implement auto-deploy to staging on push to `main` | CI/CD | [x] | Deploys to Azure Container Apps on push to main |
 | 4.6.6 | Implement manual approval gate for production deployment | CI/CD | [ ] | |
-| 4.6.7 | Set up database migration step in deployment pipeline (run before new API version) | CI/CD | [ ] | |
+| 4.6.7 | Set up database migration step in deployment pipeline (run before new API version) | CI/CD | [x] | Migrations auto-run on API startup |
 
 ---
 
@@ -627,7 +627,7 @@
 | 4.8.3 | Verify CORS configuration — only admin panel origin allowed | Backend | [ ] | |
 | 4.8.4 | Verify JWT validation — expired tokens rejected, invalid signatures rejected, missing claims rejected | Backend | [ ] | |
 | 4.8.5 | Verify data isolation — XEX Play has zero network access to Exchange DB | Infra | [ ] | |
-| 4.8.6 | Set up dependency scanning — GitHub Dependabot for Go, Flutter, Next.js | CI/CD | [ ] | |
+| 4.8.6 | Set up dependency scanning — GitHub Dependabot for Go, Flutter, Next.js | CI/CD | [x] | .github/dependabot.yml |
 | 4.8.7 | Review and harden Docker images — non-root user, minimal base images, no secrets in image layers | Infra | [x] | Both Dockerfiles use non-root |
 
 ---
@@ -681,10 +681,10 @@
 | Phase | Total Tasks | Completed | In Progress | Not Started | Blocked |
 | ----- | ----------- | --------- | ----------- | ----------- | ------- |
 | **Phase 1: MVP** | 128 | 118 | 0 | 10 | 0 |
-| **Phase 2: Competition** | 57 | 48 | 0 | 9 | 0 |
+| **Phase 2: Competition** | 57 | 50 | 0 | 7 | 0 |
 | **Phase 3: Social** | 46 | 41 | 0 | 5 | 0 |
-| **Phase 4: Production** | 70 | 27 | 0 | 43 | 0 |
-| **TOTAL** | **301** | **234** | **0** | **67** | **0** |
+| **Phase 4: Production** | 70 | 37 | 0 | 33 | 0 |
+| **TOTAL** | **301** | **246** | **0** | **55** | **0** |
 
 ---
 

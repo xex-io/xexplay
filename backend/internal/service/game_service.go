@@ -18,6 +18,7 @@ type GameService struct {
 	answerRepo         *postgres.AnswerRepo
 	basketRepo         *postgres.BasketRepo
 	cardRepo           *postgres.CardRepo
+	userRepo           *postgres.UserRepo
 	cacheRepo          *redis.CacheRepo
 	shuffleService     *ShuffleService
 	streakService      *StreakService
@@ -29,6 +30,7 @@ func NewGameService(
 	answerRepo *postgres.AnswerRepo,
 	basketRepo *postgres.BasketRepo,
 	cardRepo *postgres.CardRepo,
+	userRepo *postgres.UserRepo,
 	cacheRepo *redis.CacheRepo,
 	shuffleService *ShuffleService,
 	streakService *StreakService,
@@ -39,11 +41,26 @@ func NewGameService(
 		answerRepo:         answerRepo,
 		basketRepo:         basketRepo,
 		cardRepo:           cardRepo,
+		userRepo:           userRepo,
 		cacheRepo:          cacheRepo,
 		shuffleService:     shuffleService,
 		streakService:      streakService,
 		achievementService: achievementService,
 	}
+}
+
+// IsUserEligibleForVIPCards checks if a user qualifies for VIP-tier cards
+// based on their Exchange trading tier. Returns true if the user has any
+// active trading tier (basic, silver, gold, or vip).
+func (s *GameService) IsUserEligibleForVIPCards(ctx context.Context, userID uuid.UUID) (bool, string) {
+	if s.userRepo == nil {
+		return false, ""
+	}
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil || user == nil {
+		return false, ""
+	}
+	return user.IsActiveTrader(), user.TradingTier
 }
 
 // StartSession finds today's published basket, checks for an existing session (resume),

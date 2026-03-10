@@ -11,6 +11,7 @@ const (
 	TierGold   = "gold"
 	TierSilver = "silver"
 	TierWhite  = "white"
+	TierVIP    = "vip" // Exclusive tier for active Exchange traders
 
 	// Fixed scoring per tier
 	GoldHighPoints   = 20
@@ -18,6 +19,8 @@ const (
 	SilverHighPoints = 15
 	SilverLowPoints  = 10
 	WhitePoints      = 10
+	VIPHighPoints    = 30 // VIP cards award more points
+	VIPLowPoints     = 10
 
 	// Fixed tier counts per basket
 	GoldCount   = 3
@@ -51,6 +54,14 @@ type Card struct {
 // PointsForAnswer returns the points a user would earn for a given answer on this card, if correct.
 func (c *Card) PointsForAnswer(answer bool) int {
 	switch c.Tier {
+	case TierVIP:
+		if c.HighAnswerIsYes == nil {
+			return VIPLowPoints
+		}
+		if answer == *c.HighAnswerIsYes {
+			return VIPHighPoints
+		}
+		return VIPLowPoints
 	case TierGold:
 		if c.HighAnswerIsYes == nil {
 			return GoldLowPoints

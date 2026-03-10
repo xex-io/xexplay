@@ -9,11 +9,20 @@ import (
 
 // RewardType constants.
 const (
-	RewardToken       = "token"
-	RewardBonusSkip   = "bonus_skip"
-	RewardBonusAnswer = "bonus_answer"
-	RewardBadge       = "badge"
+	RewardToken              = "token"
+	RewardBonusSkip          = "bonus_skip"
+	RewardBonusAnswer        = "bonus_answer"
+	RewardBadge              = "badge"
+	RewardTradingFeeDiscount = "trading_fee_discount"
 )
+
+// TradingFeeDiscount metadata for the trading_fee_discount reward type.
+// Amount is the discount percentage (e.g. 10.0 = 10% off trading fees).
+// Duration is encoded in the reward config description as JSON: {"duration_days": 7}.
+type TradingFeeDiscountMeta struct {
+	DiscountPercent float64 `json:"discount_percent"`
+	DurationDays    int     `json:"duration_days"`
+}
 
 // Reward distribution status constants.
 const (
