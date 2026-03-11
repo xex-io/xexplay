@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "292500384931",
+    "project_id": "xexplay-prod",
+    "storage_bucket": "xexplay-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:292500384931:android:fa05fe6d9e36d4c822e316",
+        "android_client_info": {
+          "package_name": "io.xexplay.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLkcAW4KScGiy_-fbCw17nE7LO2AQSmW8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

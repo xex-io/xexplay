@@ -22,8 +22,6 @@ String generateExchangeJwt({
   String role = 'user',
   Duration ttl = const Duration(hours: 1),
 }) {
-  final now = DateTime.now().toUtc();
-
   final jwt = JWT(
     {
       'user_id': userId,

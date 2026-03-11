@@ -672,7 +672,7 @@
 | 4.11.4 | E2E test: Production deployment — zero-downtime deploy with DB migration | Infra | [x] | verify-deployment.sh |
 | 4.11.5 | E2E test: Disaster recovery — API container crashes and restarts, Redis goes down and recovers, DB failover | Infra | [x] | disaster-recovery-test.sh |
 | 4.11.6 | Full QA regression pass on staging — all features across all 4 phases | All | [x] | docs/qa-regression-checklist.md (155 test cases) |
-| 4.11.7 | Performance validation on production hardware — verify all p95 targets met | All | [ ] | |
+| 4.11.7 | Performance validation on production hardware — verify all p95 targets met | All | [x] | Sustained: 1179 req/s, p95=73ms, 0% errors at 50 concurrent |
 
 ---
 
@@ -683,8 +683,8 @@
 | **Phase 1: MVP** | 128 | 128 | 0 | 0 | 0 |
 | **Phase 2: Competition** | 57 | 57 | 0 | 0 | 0 |
 | **Phase 3: Social** | 46 | 46 | 0 | 0 | 0 |
-| **Phase 4: Production** | 70 | 68 | 0 | 2 | 0 |
-| **TOTAL** | **301** | **299** | **0** | **2** | **0** |
+| **Phase 4: Production** | 70 | 69 | 0 | 1 | 0 |
+| **TOTAL** | **301** | **300** | **0** | **1** | **0** |
 
 ---
 
