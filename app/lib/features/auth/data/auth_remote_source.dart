@@ -26,22 +26,26 @@ class AuthRemoteSource {
   Future<AuthLoginResponse> login(String exchangeToken) async {
     final response = await _apiClient.dio.post(
       ApiConstants.login,
-      data: {'exchange_token': exchangeToken},
+      data: {'token': exchangeToken},
     );
 
-    final data = response.data as Map<String, dynamic>;
+    final body = response.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    // The backend validates the Exchange JWT and returns the Play user.
+    // The Exchange JWT itself is reused as the bearer token.
     return AuthLoginResponse(
-      user: User.fromJson(data['user'] as Map<String, dynamic>),
-      accessToken: data['access_token'] as String,
-      refreshToken: data['refresh_token'] as String,
+      user: User.fromJson(data),
+      accessToken: exchangeToken,
+      refreshToken: exchangeToken,
     );
   }
 
   /// Fetches the current user profile using the stored Play token.
   Future<User> me() async {
     final response = await _apiClient.dio.get(ApiConstants.me);
-    final data = response.data as Map<String, dynamic>;
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+    final body = response.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    return User.fromJson(data);
   }
 
   /// Logs out on the server side.
