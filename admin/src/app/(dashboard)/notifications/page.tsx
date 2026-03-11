@@ -42,8 +42,8 @@ interface NotificationHistory {
   title: string;
   body: string;
   target: string;
-  delivery_count: number;
   sent_at: string;
+  sent_by: string;
 }
 
 const TARGET_OPTIONS = [
@@ -182,21 +182,22 @@ export default function NotificationsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
+                <TableHead>Body</TableHead>
                 <TableHead>Target</TableHead>
-                <TableHead>Delivery Count</TableHead>
+                <TableHead>Sent By</TableHead>
                 <TableHead>Sent At</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                     Loading history...
                   </TableCell>
                 </TableRow>
               ) : history.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                     No notifications sent yet.
                   </TableCell>
                 </TableRow>
@@ -204,13 +205,16 @@ export default function NotificationsPage() {
                 history.map((n) => (
                   <TableRow key={n.id}>
                     <TableCell className="font-medium">{n.title}</TableCell>
+                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                      {n.body}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="capitalize">
                         {n.target}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono">
-                      {n.delivery_count.toLocaleString()}
+                    <TableCell className="text-muted-foreground">
+                      {n.sent_by}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(n.sent_at).toLocaleString()}

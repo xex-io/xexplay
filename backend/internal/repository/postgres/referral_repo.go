@@ -99,6 +99,67 @@ func (r *ReferralRepo) FindByReferrer(ctx context.Context, referrerID uuid.UUID)
 	return referrals, nil
 }
 
+// CountAll returns the total number of referrals.
+func (r *ReferralRepo) CountAll(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM referrals`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count all referrals: %w", err)
+	}
+	return count, nil
+}
+
+// CountConverted returns referrals that reached first_session status.
+func (r *ReferralRepo) CountConverted(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM referrals WHERE status = 'first_session'`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count converted referrals: %w", err)
+	}
+	return count, nil
+}
+
+// CountActiveReferrers returns the number of distinct users who have at least one referral.
+func (r *ReferralRepo) CountActiveReferrers(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.Pool.QueryRow(ctx, `SELECT COUNT(DISTINCT referrer_id) FROM referrals`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count active referrers: %w", err)
+	}
+	return count, nil
+}
+
+// TopReferrers returns the top referrers by referral count.
+func (r *ReferralRepo) TopReferrers(ctx context.Context, limit int) ([]domain.TopReferrer, error) {
+	query := `
+		SELECT r.referrer_id, u.display_name, u.email, COUNT(*) AS referral_count,
+		       COUNT(*) FILTER (WHERE r.status = 'first_session') AS converted_count
+		FROM referrals r
+		JOIN users u ON u.id = r.referrer_id
+		GROUP BY r.referrer_id, u.display_name, u.email
+		ORDER BY referral_count DESC
+		LIMIT $1`
+
+	rows, err := r.db.Pool.Query(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("top referrers: %w", err)
+	}
+	defer rows.Close()
+
+	var results []domain.TopReferrer
+	for rows.Next() {
+		var t domain.TopReferrer
+		if err := rows.Scan(&t.UserID, &t.DisplayName, &t.Email, &t.ReferralCount, &t.ConvertedCount); err != nil {
+			return nil, fmt.Errorf("scan top referrer: %w", err)
+		}
+		results = append(results, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate top referrers: %w", err)
+	}
+	return results, nil
+}
+
 // FindByReferred returns the referral record for a referred user, or nil if none exists.
 func (r *ReferralRepo) FindByReferred(ctx context.Context, referredID uuid.UUID) (*domain.Referral, error) {
 	query := `

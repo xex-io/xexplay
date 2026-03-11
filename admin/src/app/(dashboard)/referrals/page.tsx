@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 import {
   Card,
@@ -19,44 +19,38 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 interface ReferralStats {
-  totalReferrals: number;
-  conversionRate: number;
-  activeReferrers: number;
+  total_referrals: number;
+  converted_referrals: number;
+  conversion_rate: number;
+  active_referrers: number;
 }
 
 interface TopReferrer {
-  userId: string;
-  username: string;
-  referralCount: number;
-  completedReferrals: number;
+  user_id: string;
+  email: string;
+  display_name: string;
+  referral_count: number;
+  converted_count: number;
 }
 
 export default function ReferralsPage() {
-  const [stats, setStats] = useState<ReferralStats>({
-    totalReferrals: 0,
-    conversionRate: 0,
-    activeReferrers: 0,
+  const { data: stats, isLoading: statsLoading } = useQuery<ReferralStats>({
+    queryKey: ["admin-referral-stats"],
+    queryFn: async () => {
+      const res = await apiClient.get("/admin/referrals/stats");
+      return res.data?.data ?? res.data;
+    },
   });
-  const [topReferrers, setTopReferrers] = useState<TopReferrer[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [statsRes, referrersRes] = await Promise.all([
-          apiClient.get("/admin/referrals/stats"),
-          apiClient.get("/admin/referrals/top"),
-        ]);
-        setStats(statsRes.data);
-        setTopReferrers(referrersRes.data);
-      } catch {
-        // API may not be available yet — show empty state
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+  const { data: topReferrers = [], isLoading: referrersLoading } = useQuery<TopReferrer[]>({
+    queryKey: ["admin-referral-top"],
+    queryFn: async () => {
+      const res = await apiClient.get("/admin/referrals/top");
+      return res.data?.data ?? res.data ?? [];
+    },
+  });
+
+  const loading = statsLoading || referrersLoading;
 
   return (
     <div className="space-y-6">
@@ -65,21 +59,26 @@ export default function ReferralsPage() {
       </h1>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
           label="Total Referrals"
-          value={stats.totalReferrals}
-          loading={loading}
+          value={stats?.total_referrals ?? 0}
+          loading={statsLoading}
+        />
+        <StatCard
+          label="Converted Referrals"
+          value={stats?.converted_referrals ?? 0}
+          loading={statsLoading}
         />
         <StatCard
           label="Conversion Rate"
-          value={`${stats.conversionRate.toFixed(1)}%`}
-          loading={loading}
+          value={`${(stats?.conversion_rate ?? 0).toFixed(1)}%`}
+          loading={statsLoading}
         />
         <StatCard
           label="Active Referrers"
-          value={stats.activeReferrers}
-          loading={loading}
+          value={stats?.active_referrers ?? 0}
+          loading={statsLoading}
         />
       </div>
 
@@ -92,8 +91,9 @@ export default function ReferralsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>User</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Referral Count</TableHead>
-              <TableHead>Completed</TableHead>
+              <TableHead>Converted</TableHead>
               <TableHead>Rate</TableHead>
             </TableRow>
           </TableHeader>
@@ -101,7 +101,7 @@ export default function ReferralsPage() {
             {loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-center py-8 text-muted-foreground"
                 >
                   Loading...
@@ -110,7 +110,7 @@ export default function ReferralsPage() {
             ) : topReferrers.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No referral data yet
@@ -119,16 +119,19 @@ export default function ReferralsPage() {
             ) : (
               topReferrers.map((r) => {
                 const rate =
-                  r.referralCount > 0
-                    ? (r.completedReferrals / r.referralCount) * 100
+                  r.referral_count > 0
+                    ? (r.converted_count / r.referral_count) * 100
                     : 0;
                 return (
-                  <TableRow key={r.userId}>
+                  <TableRow key={r.user_id}>
                     <TableCell className="font-medium">
-                      {r.username || r.userId}
+                      {r.display_name || r.user_id}
                     </TableCell>
-                    <TableCell>{r.referralCount}</TableCell>
-                    <TableCell>{r.completedReferrals}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {r.email}
+                    </TableCell>
+                    <TableCell>{r.referral_count}</TableCell>
+                    <TableCell>{r.converted_count}</TableCell>
                     <TableCell>
                       <Badge
                         variant={rate >= 50 ? "default" : "secondary"}

@@ -25,6 +25,15 @@ type Referral struct {
 
 // ReferralStats holds aggregated referral statistics for a user.
 type ReferralStats struct {
-	TotalReferrals    int `json:"total_referrals"`
+	TotalReferrals     int `json:"total_referrals"`
 	CompletedReferrals int `json:"completed_referrals"`
+}
+
+// TopReferrer represents a top referrer entry for admin reporting.
+type TopReferrer struct {
+	UserID         uuid.UUID `json:"user_id"`
+	DisplayName    string    `json:"display_name"`
+	Email          string    `json:"email"`
+	ReferralCount  int       `json:"referral_count"`
+	ConvertedCount int       `json:"converted_count"`
 }

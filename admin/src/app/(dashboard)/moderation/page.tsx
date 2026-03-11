@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
-import { Search, ShieldAlert, Ban } from "lucide-react";
+import { Search, ShieldAlert, Ban, CheckCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,13 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+
+interface SearchResult {
+  id: string;
+  email: string;
+  display_name: string;
+  status: string;
+}
 
 interface UserDetail {
   id: string;
@@ -67,32 +74,46 @@ export default function ModerationPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [actionModal, setActionModal] = useState<{
-    type: "ban" | "suspend";
+    type: "ban" | "suspend" | "activate";
     userId: string;
   } | null>(null);
   const [actionReason, setActionReason] = useState("");
 
-  const { data: user, isLoading: userLoading, isError } = useQuery<UserDetail>({
-    queryKey: ["admin-user-detail", searchTerm],
+  // Search users
+  const { data: searchResults = [], isLoading: searchLoading, isError: searchError } = useQuery<SearchResult[]>({
+    queryKey: ["admin-user-search", searchTerm],
     queryFn: async () => {
-      const res = await apiClient.get(`/admin/users/search`, {
+      const res = await apiClient.get("/admin/users/search", {
         params: { q: searchTerm },
       });
-      return res.data?.data ?? res.data;
+      return res.data?.data ?? res.data ?? [];
     },
     enabled: searchTerm.length > 0,
   });
 
-  const { data: activity = [], isLoading: activityLoading } = useQuery<ActivityEntry[]>({
-    queryKey: ["admin-user-activity", user?.id],
+  // Get selected user details
+  const { data: user, isLoading: userLoading } = useQuery<UserDetail>({
+    queryKey: ["admin-user-detail", selectedUserId],
     queryFn: async () => {
-      const res = await apiClient.get(`/admin/users/${user!.id}/activity`);
-      return res.data?.data ?? res.data ?? [];
+      const res = await apiClient.get(`/admin/users/${selectedUserId}`);
+      return res.data?.data ?? res.data;
     },
-    enabled: !!user?.id,
+    enabled: !!selectedUserId,
   });
 
+  // Get user activity
+  const { data: activity = [], isLoading: activityLoading } = useQuery<ActivityEntry[]>({
+    queryKey: ["admin-user-activity", selectedUserId],
+    queryFn: async () => {
+      const res = await apiClient.get(`/admin/users/${selectedUserId}/activity`);
+      return res.data?.data ?? res.data ?? [];
+    },
+    enabled: !!selectedUserId,
+  });
+
+  // Moderate user
   const moderationMutation = useMutation({
     mutationFn: async ({
       userId,
@@ -100,7 +121,7 @@ export default function ModerationPage() {
       reason,
     }: {
       userId: string;
-      action: "ban" | "suspend";
+      action: "ban" | "suspend" | "activate";
       reason: string;
     }) => {
       return apiClient.post(`/admin/users/${userId}/moderate`, {
@@ -109,7 +130,8 @@ export default function ModerationPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-user-detail", searchTerm] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-detail", selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-search", searchTerm] });
       setActionModal(null);
       setActionReason("");
     },
@@ -117,6 +139,7 @@ export default function ModerationPage() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
+    setSelectedUserId(null);
     setSearchTerm(searchQuery.trim());
   }
 
@@ -133,7 +156,7 @@ export default function ModerationPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by email or user ID..."
+            placeholder="Search by email or name..."
             className="flex-1"
           />
           <Button type="submit" size="lg">
@@ -143,19 +166,84 @@ export default function ModerationPage() {
         </div>
       </form>
 
-      {userLoading && (
+      {searchLoading && (
         <div className="text-center py-12 text-muted-foreground text-sm">Searching...</div>
       )}
 
-      {isError && searchTerm && (
+      {searchError && searchTerm && (
         <div className="text-center py-12 text-muted-foreground text-sm">
-          User not found. Try a different email or ID.
+          No users found. Try a different search term.
         </div>
       )}
 
-      {user && (
+      {/* Search Results */}
+      {!searchLoading && !searchError && searchTerm && searchResults.length > 0 && !selectedUserId && (
+        <Card className="mb-6">
+          <CardHeader className="border-b">
+            <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+              Search Results ({searchResults.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {searchResults.map((result) => (
+                  <TableRow key={result.id}>
+                    <TableCell className="font-medium">
+                      {result.display_name || "Unnamed User"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {result.email}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusVariant(result.status)} className="capitalize">
+                        {result.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedUserId(result.id)}
+                      >
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {!searchLoading && !searchError && searchTerm && searchResults.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground text-sm">
+          No users found. Try a different search term.
+        </div>
+      )}
+
+      {/* User Detail Panel */}
+      {selectedUserId && userLoading && (
+        <div className="text-center py-12 text-muted-foreground text-sm">Loading user details...</div>
+      )}
+
+      {user && selectedUserId && (
         <>
-          {/* User Detail Panel */}
+          <div className="mb-4">
+            <Button variant="outline" size="sm" onClick={() => setSelectedUserId(null)}>
+              Back to search results
+            </Button>
+          </div>
+
           <Card className="mb-6">
             <CardContent>
               <div className="flex items-start gap-5">
@@ -211,6 +299,19 @@ export default function ModerationPage() {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-2 flex-shrink-0">
+                  {user.status !== "active" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-green-500/30 text-green-400 hover:bg-green-600/20"
+                      onClick={() =>
+                        setActionModal({ type: "activate", userId: user.id })
+                      }
+                    >
+                      <CheckCircle data-icon="inline-start" />
+                      Activate
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -327,7 +428,7 @@ export default function ModerationPage() {
         </>
       )}
 
-      {/* Ban/Suspend Modal */}
+      {/* Ban/Suspend/Activate Modal */}
       <Dialog
         open={!!actionModal}
         onOpenChange={(open) => {
@@ -343,7 +444,11 @@ export default function ModerationPage() {
               {actionModal?.type} User
             </DialogTitle>
             <DialogDescription>
-              This action will {actionModal?.type === "ban" ? "permanently ban" : "temporarily suspend"} the user.
+              {actionModal?.type === "ban"
+                ? "This action will permanently ban the user."
+                : actionModal?.type === "suspend"
+                  ? "This action will temporarily suspend the user."
+                  : "This action will reactivate the user."}
             </DialogDescription>
           </DialogHeader>
 
@@ -383,7 +488,7 @@ export default function ModerationPage() {
             >
               {moderationMutation.isPending
                 ? "Processing..."
-                : `Confirm ${actionModal?.type === "ban" ? "Ban" : "Suspend"}`}
+                : `Confirm ${actionModal?.type === "ban" ? "Ban" : actionModal?.type === "suspend" ? "Suspend" : "Activate"}`}
             </Button>
           </DialogFooter>
 

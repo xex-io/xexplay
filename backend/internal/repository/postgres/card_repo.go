@@ -128,6 +128,38 @@ func (r *CardRepo) Resolve(ctx context.Context, cardID uuid.UUID, correctAnswer 
 	return nil
 }
 
+func (r *CardRepo) FindAll(ctx context.Context) ([]*domain.Card, error) {
+	query := `
+		SELECT id, match_id, question_text, tier, high_answer_is_yes,
+		       correct_answer, is_resolved, available_date, expires_at,
+		       created_at, updated_at
+		FROM cards
+		ORDER BY available_date DESC, tier, created_at ASC`
+
+	rows, err := r.db.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("find all cards: %w", err)
+	}
+	defer rows.Close()
+
+	var cards []*domain.Card
+	for rows.Next() {
+		var c domain.Card
+		if err := rows.Scan(
+			&c.ID, &c.MatchID, &c.QuestionText, &c.Tier, &c.HighAnswerIsYes,
+			&c.CorrectAnswer, &c.IsResolved, &c.AvailableDate, &c.ExpiresAt,
+			&c.CreatedAt, &c.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan card: %w", err)
+		}
+		cards = append(cards, &c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate cards: %w", err)
+	}
+	return cards, nil
+}
+
 func (r *CardRepo) FindUnresolvedByMatch(ctx context.Context, matchID uuid.UUID) ([]*domain.Card, error) {
 	query := `
 		SELECT id, match_id, question_text, tier, high_answer_is_yes,

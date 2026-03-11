@@ -106,6 +106,48 @@ func (r *AbuseRepo) CountByUserAndType(ctx context.Context, userID uuid.UUID, fl
 	return count, nil
 }
 
+// CountByStatus returns counts of abuse flags grouped by status.
+func (r *AbuseRepo) CountByStatus(ctx context.Context) (map[string]int, error) {
+	query := `SELECT status, COUNT(*) FROM abuse_flags GROUP BY status`
+	rows, err := r.db.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("count abuse flags by status: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]int)
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, fmt.Errorf("scan abuse flag count: %w", err)
+		}
+		result[status] = count
+	}
+	return result, nil
+}
+
+// CountByType returns counts of abuse flags grouped by flag_type.
+func (r *AbuseRepo) CountByType(ctx context.Context) (map[string]int, error) {
+	query := `SELECT flag_type, COUNT(*) FROM abuse_flags GROUP BY flag_type`
+	rows, err := r.db.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("count abuse flags by type: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]int)
+	for rows.Next() {
+		var flagType string
+		var count int
+		if err := rows.Scan(&flagType, &count); err != nil {
+			return nil, fmt.Errorf("scan abuse flag type count: %w", err)
+		}
+		result[flagType] = count
+	}
+	return result, nil
+}
+
 func scanAbuseFlags(rows pgx.Rows) ([]domain.AbuseFlag, error) {
 	var flags []domain.AbuseFlag
 	for rows.Next() {

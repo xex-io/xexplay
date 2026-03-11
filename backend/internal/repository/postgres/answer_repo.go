@@ -96,6 +96,55 @@ func (r *AnswerRepo) FindByCard(ctx context.Context, cardID uuid.UUID) ([]*domai
 	return answers, nil
 }
 
+// FindByUserID returns recent answers for a specific user.
+func (r *AnswerRepo) FindByUserID(ctx context.Context, userID uuid.UUID, limit int) ([]*domain.UserAnswer, error) {
+	query := `
+		SELECT id, session_id, card_id, user_id, answer,
+		       points_earned, is_correct, answered_at, resolved_at
+		FROM user_answers
+		WHERE user_id = $1
+		ORDER BY answered_at DESC
+		LIMIT $2`
+
+	rows, err := r.db.Pool.Query(ctx, query, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("find answers by user_id: %w", err)
+	}
+	defer rows.Close()
+
+	var answers []*domain.UserAnswer
+	for rows.Next() {
+		var a domain.UserAnswer
+		if err := rows.Scan(
+			&a.ID, &a.SessionID, &a.CardID, &a.UserID, &a.Answer,
+			&a.PointsEarned, &a.IsCorrect, &a.AnsweredAt, &a.ResolvedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan answer: %w", err)
+		}
+		answers = append(answers, &a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate answers: %w", err)
+	}
+	return answers, nil
+}
+
+// CountCorrectIncorrect returns the total correct and incorrect answer counts.
+func (r *AnswerRepo) CountCorrectIncorrect(ctx context.Context) (correct int, incorrect int, err error) {
+	sqlStr := `
+		SELECT
+			COUNT(*) FILTER (WHERE is_correct = true),
+			COUNT(*) FILTER (WHERE is_correct = false)
+		FROM user_answers
+		WHERE is_correct IS NOT NULL`
+
+	err = r.db.Pool.QueryRow(ctx, sqlStr).Scan(&correct, &incorrect)
+	if err != nil {
+		return 0, 0, fmt.Errorf("count correct/incorrect answers: %w", err)
+	}
+	return correct, incorrect, nil
+}
+
 // BulkResolve resolves all answers for a given card. It fetches the card to determine
 // tier-based scoring, then updates each answer's is_correct, points_earned, and resolved_at.
 // It also adds earned points to each user's total_points.

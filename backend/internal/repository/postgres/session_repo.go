@@ -96,6 +96,26 @@ func (r *SessionRepo) Complete(ctx context.Context, sessionID uuid.UUID) error {
 	return nil
 }
 
+// CountTotal returns the total number of sessions.
+func (r *SessionRepo) CountTotal(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM user_sessions`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count total sessions: %w", err)
+	}
+	return count, nil
+}
+
+// CountCompleted returns the number of completed sessions.
+func (r *SessionRepo) CountCompleted(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM user_sessions WHERE status = 'completed'`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count completed sessions: %w", err)
+	}
+	return count, nil
+}
+
 func (r *SessionRepo) FindByUserID(ctx context.Context, userID uuid.UUID, limit int) ([]*domain.UserSession, error) {
 	query := `
 		SELECT id, user_id, basket_id, shuffle_order, current_index,

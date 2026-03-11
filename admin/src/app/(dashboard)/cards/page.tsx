@@ -6,6 +6,9 @@ import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -22,7 +25,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Check, Plus, AlertCircle } from "lucide-react";
 
@@ -30,7 +39,7 @@ interface CardItem {
   id: string;
   match_id: string;
   question_text: Record<string, string>;
-  tier: "gold" | "silver" | "white";
+  tier: "gold" | "silver" | "white" | "vip";
   high_answer_is_yes: boolean | null;
   correct_answer: boolean | null;
   is_resolved: boolean;
@@ -50,6 +59,7 @@ const tierVariant: Record<string, "default" | "secondary" | "outline"> = {
   gold: "default",
   silver: "secondary",
   white: "outline",
+  vip: "default",
 };
 
 function getQuestionText(qt: Record<string, string>): string {
@@ -63,14 +73,27 @@ function truncate(text: string, len: number): string {
 
 export default function CardsPage() {
   const queryClient = useQueryClient();
+  const [dateFilter, setDateFilter] = useState("");
   const [resolveModal, setResolveModal] = useState<CardItem | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    match_id: "",
+    question_en: "",
+    question_fa: "",
+    question_ar: "",
+    tier: "white",
+    available_date: "",
+    expires_at: "",
+  });
 
   const { data: cards = [], isLoading } = useQuery<CardItem[]>({
-    queryKey: ["admin-cards"],
+    queryKey: ["admin-cards", dateFilter],
     queryFn: async () => {
-      const res = await apiClient.get("/admin/cards");
+      const params: Record<string, string> = {};
+      if (dateFilter) params.date = dateFilter;
+      const res = await apiClient.get("/admin/cards", { params });
       return res.data?.data ?? res.data ?? [];
     },
   });
@@ -103,6 +126,37 @@ export default function CardsPage() {
     },
   });
 
+  const createMutation = useMutation({
+    mutationFn: async (data: {
+      match_id: string;
+      question_text: Record<string, string>;
+      tier: string;
+      available_date: string;
+      expires_at: string;
+    }) => {
+      return apiClient.post("/admin/cards", {
+        match_id: data.match_id,
+        question_text: data.question_text,
+        tier: data.tier,
+        available_date: data.available_date,
+        expires_at: data.expires_at,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-cards"] });
+      setShowCreateModal(false);
+      setCreateForm({
+        match_id: "",
+        question_en: "",
+        question_fa: "",
+        question_ar: "",
+        tier: "white",
+        available_date: "",
+        expires_at: "",
+      });
+    },
+  });
+
   function openModal(card: CardItem) {
     setResolveModal(card);
     setSelectedAnswer(null);
@@ -129,6 +183,25 @@ export default function CardsPage() {
     }
   }
 
+  function handleCreateCard() {
+    const questionText: Record<string, string> = {};
+    if (createForm.question_en) questionText.en = createForm.question_en;
+    if (createForm.question_fa) questionText.fa = createForm.question_fa;
+    if (createForm.question_ar) questionText.ar = createForm.question_ar;
+
+    createMutation.mutate({
+      match_id: createForm.match_id,
+      question_text: questionText,
+      tier: createForm.tier,
+      available_date: createForm.available_date
+        ? createForm.available_date + "T00:00:00Z"
+        : "",
+      expires_at: createForm.expires_at
+        ? createForm.expires_at + "T23:59:59Z"
+        : "",
+    });
+  }
+
   function getMatchLabel(matchId: string): string {
     const m = matchMap.get(matchId);
     return m ? `${m.home_team} vs ${m.away_team}` : matchId.slice(0, 8);
@@ -138,10 +211,28 @@ export default function CardsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-foreground">Cards</h1>
-        <Button size="sm">
-          <Plus className="size-4" data-icon="inline-start" />
-          Create Card
-        </Button>
+        <div className="flex items-center gap-3">
+          <Input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="w-44"
+            placeholder="Filter by date"
+          />
+          {dateFilter && (
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => setDateFilter("")}
+            >
+              Clear
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setShowCreateModal(true)}>
+            <Plus className="size-4" data-icon="inline-start" />
+            Create Card
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -346,6 +437,152 @@ export default function CardsPage() {
                 </div>
               )}
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Card Dialog */}
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Card</DialogTitle>
+            <DialogDescription>
+              Create a new prediction card for a match.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Match ID</Label>
+              <Input
+                type="text"
+                value={createForm.match_id}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, match_id: e.target.value })
+                }
+                placeholder="UUID of the match"
+              />
+              {matches.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Available:{" "}
+                  {matches
+                    .slice(0, 5)
+                    .map(
+                      (m) =>
+                        `${m.home_team} vs ${m.away_team} (${m.id.slice(0, 8)})`
+                    )
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Question (English)</Label>
+              <Textarea
+                value={createForm.question_en}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, question_en: e.target.value })
+                }
+                placeholder="Will Team A win?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Question (Farsi)</Label>
+              <Textarea
+                value={createForm.question_fa}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, question_fa: e.target.value })
+                }
+                placeholder="Optional"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Question (Arabic)</Label>
+              <Textarea
+                value={createForm.question_ar}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, question_ar: e.target.value })
+                }
+                placeholder="Optional"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tier</Label>
+              <Select
+                value={createForm.tier}
+                onValueChange={(val) =>
+                  setCreateForm({ ...createForm, tier: val ?? "white" })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="white">White</SelectItem>
+                  <SelectItem value="silver">Silver</SelectItem>
+                  <SelectItem value="gold">Gold</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-2">
+                <Label>Available Date</Label>
+                <Input
+                  type="date"
+                  value={createForm.available_date}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      available_date: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label>Expires At</Label>
+                <Input
+                  type="date"
+                  value={createForm.expires_at}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      expires_at: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateCard}
+              disabled={
+                createMutation.isPending ||
+                !createForm.match_id ||
+                !createForm.question_en ||
+                !createForm.available_date ||
+                !createForm.expires_at
+              }
+            >
+              {createMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+          {createMutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to create card. Please try again.
+            </p>
           )}
         </DialogContent>
       </Dialog>

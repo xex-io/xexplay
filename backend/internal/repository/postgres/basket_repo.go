@@ -102,6 +102,78 @@ func (r *BasketRepo) Publish(ctx context.Context, basketID uuid.UUID) error {
 	return nil
 }
 
+func (r *BasketRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.DailyBasket, error) {
+	query := `
+		SELECT id, basket_date, event_id, is_published, created_at
+		FROM daily_baskets
+		WHERE id = $1`
+
+	var b domain.DailyBasket
+	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
+		&b.ID, &b.BasketDate, &b.EventID, &b.IsPublished, &b.CreatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("find basket by id: %w", err)
+	}
+	return &b, nil
+}
+
+func (r *BasketRepo) FindAll(ctx context.Context) ([]*domain.DailyBasket, error) {
+	query := `
+		SELECT id, basket_date, event_id, is_published, created_at
+		FROM daily_baskets
+		ORDER BY basket_date DESC, created_at DESC`
+
+	rows, err := r.db.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("find all baskets: %w", err)
+	}
+	defer rows.Close()
+
+	var baskets []*domain.DailyBasket
+	for rows.Next() {
+		var b domain.DailyBasket
+		if err := rows.Scan(
+			&b.ID, &b.BasketDate, &b.EventID, &b.IsPublished, &b.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan basket: %w", err)
+		}
+		baskets = append(baskets, &b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate baskets: %w", err)
+	}
+	return baskets, nil
+}
+
+func (r *BasketRepo) Update(ctx context.Context, b *domain.DailyBasket) error {
+	query := `
+		UPDATE daily_baskets
+		SET basket_date = $2, event_id = $3, is_published = $4
+		WHERE id = $1`
+
+	ct, err := r.db.Pool.Exec(ctx, query, b.ID, b.BasketDate, b.EventID, b.IsPublished)
+	if err != nil {
+		return fmt.Errorf("update basket: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("update basket: basket not found")
+	}
+	return nil
+}
+
+func (r *BasketRepo) RemoveAllCards(ctx context.Context, basketID uuid.UUID) error {
+	query := `DELETE FROM daily_basket_cards WHERE basket_id = $1`
+	_, err := r.db.Pool.Exec(ctx, query, basketID)
+	if err != nil {
+		return fmt.Errorf("remove all cards from basket: %w", err)
+	}
+	return nil
+}
+
 func (r *BasketRepo) FindByDateAndEvent(ctx context.Context, date time.Time, eventID uuid.UUID) (*domain.DailyBasket, error) {
 	query := `
 		SELECT id, basket_date, event_id, is_published, created_at

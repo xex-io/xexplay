@@ -3,27 +3,22 @@
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface ExchangeMetrics {
-  navigated_to_exchange: number;
+  linked_users: number;
   total_users: number;
-  prompt_clicks: number;
-  prompt_impressions: number;
-  conversion_rate: number;
-  traders_active_on_exchange: number;
-  avg_trades_per_user: number;
-  correlation_score: number;
+  link_rate: number;
+  trading_tier_distribution: Record<string, number>;
+  reward_claims_by_type: Record<string, number>;
 }
 
 const defaultMetrics: ExchangeMetrics = {
-  navigated_to_exchange: 0,
+  linked_users: 0,
   total_users: 0,
-  prompt_clicks: 0,
-  prompt_impressions: 0,
-  conversion_rate: 0,
-  traders_active_on_exchange: 0,
-  avg_trades_per_user: 0,
-  correlation_score: 0,
+  link_rate: 0,
+  trading_tier_distribution: {},
+  reward_claims_by_type: {},
 };
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -41,6 +36,15 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+const TIER_COLORS: Record<string, string> = {
+  none: "bg-gray-500",
+  bronze: "bg-amber-700",
+  silver: "bg-gray-400",
+  gold: "bg-yellow-500",
+  platinum: "bg-cyan-400",
+  diamond: "bg-blue-500",
+};
+
 export default function ExchangeMetricsPage() {
   const { data: metrics = defaultMetrics, isLoading } = useQuery<ExchangeMetrics>({
     queryKey: ["admin-exchange-metrics"],
@@ -50,10 +54,11 @@ export default function ExchangeMetricsPage() {
     },
   });
 
-  const clickRate =
-    metrics.prompt_impressions > 0
-      ? ((metrics.prompt_clicks / metrics.prompt_impressions) * 100).toFixed(1)
-      : "0";
+  const tierEntries = Object.entries(metrics.trading_tier_distribution);
+  const totalTierUsers = tierEntries.reduce((sum, [, count]) => sum + count, 0);
+
+  const rewardEntries = Object.entries(metrics.reward_claims_by_type);
+  const totalRewardClaims = rewardEntries.reduce((sum, [, count]) => sum + count, 0);
 
   return (
     <div>
@@ -64,105 +69,129 @@ export default function ExchangeMetricsPage() {
       ) : (
         <>
           {/* Overview Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Navigated to Exchange" value={metrics.navigated_to_exchange} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <StatCard label="Linked Users" value={metrics.linked_users} />
             <StatCard label="Total Users" value={metrics.total_users} />
-            <StatCard label="Conversion Rate" value={`${metrics.conversion_rate.toFixed(1)}%`} />
-            <StatCard label="Traders on Exchange" value={metrics.traders_active_on_exchange} />
+            <StatCard label="Link Rate" value={`${(metrics.link_rate * 100).toFixed(1)}%`} />
           </div>
 
-          {/* Prompt Performance */}
+          {/* Trading Tier Distribution & Reward Claims */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
-                  Prompt Click-Through Rate
+                  Trading Tier Distribution
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Impressions</span>
-                    <span className="text-sm font-mono text-foreground">
-                      {metrics.prompt_impressions.toLocaleString()}
-                    </span>
+                {tierEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No tier data available.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {tierEntries.map(([tier, count]) => {
+                      const pct = totalTierUsers > 0 ? (count / totalTierUsers) * 100 : 0;
+                      return (
+                        <div key={tier}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm capitalize text-foreground flex items-center gap-2">
+                              <Badge variant="secondary" className="capitalize">
+                                {tier}
+                              </Badge>
+                            </span>
+                            <span className="text-sm font-mono text-muted-foreground">
+                              {count.toLocaleString()} ({pct.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div
+                              className={`${TIER_COLORS[tier] ?? "bg-primary"} h-2 rounded-full transition-all`}
+                              style={{ width: `${Math.min(pct, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <span className="text-sm font-medium text-foreground">Total</span>
+                      <span className="text-sm font-mono text-foreground">
+                        {totalTierUsers.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Clicks</span>
-                    <span className="text-sm font-mono text-foreground">
-                      {metrics.prompt_clicks.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-primary">CTR</span>
-                    <span className="text-sm font-mono text-primary">{clickRate}%</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-3">
-                    <div
-                      className="bg-primary h-3 rounded-full transition-all"
-                      style={{ width: `${Math.min(Number(clickRate), 100)}%` }}
-                    />
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
-                  Trading Activity Correlation
+                  Reward Claims by Type
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-end gap-3 mb-4">
-                  <span className="text-4xl font-bold text-foreground">
-                    {metrics.correlation_score.toFixed(2)}
-                  </span>
-                  <span className="text-sm text-muted-foreground mb-1">correlation score</span>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Avg Trades per User</span>
-                    <span className="text-sm font-mono text-foreground">
-                      {metrics.avg_trades_per_user.toFixed(1)}
-                    </span>
+                {rewardEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reward claims data available.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {rewardEntries.map(([type, count]) => {
+                      const pct = totalRewardClaims > 0 ? (count / totalRewardClaims) * 100 : 0;
+                      return (
+                        <div key={type}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-foreground">
+                              <Badge variant="outline" className="capitalize">
+                                {type.replace(/_/g, " ")}
+                              </Badge>
+                            </span>
+                            <span className="text-sm font-mono text-muted-foreground">
+                              {count.toLocaleString()} ({pct.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full transition-all"
+                              style={{ width: `${Math.min(pct, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <span className="text-sm font-medium text-foreground">Total Claims</span>
+                      <span className="text-sm font-mono text-foreground">
+                        {totalRewardClaims.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Charts Placeholder Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
-                  Exchange Navigations (trend)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 flex items-center justify-center border border-dashed border-border rounded-md">
-                  <p className="text-sm text-muted-foreground">
-                    Chart placeholder - navigations over time
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
-                  Conversion Funnel (trend)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 flex items-center justify-center border border-dashed border-border rounded-md">
-                  <p className="text-sm text-muted-foreground">
-                    Chart placeholder - conversion funnel over time
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Link Rate Visual */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                Exchange Link Rate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end gap-3 mb-4">
+                <span className="text-4xl font-bold text-foreground">
+                  {(metrics.link_rate * 100).toFixed(1)}%
+                </span>
+                <span className="text-sm text-muted-foreground mb-1">
+                  {metrics.linked_users.toLocaleString()} of {metrics.total_users.toLocaleString()} users linked to exchange
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-3">
+                <div
+                  className="bg-primary h-3 rounded-full transition-all"
+                  style={{ width: `${Math.min(metrics.link_rate * 100, 100)}%` }}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

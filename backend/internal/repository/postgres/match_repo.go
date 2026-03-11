@@ -111,6 +111,38 @@ func (r *MatchRepo) FindByEventID(ctx context.Context, eventID uuid.UUID) ([]*do
 	return matches, nil
 }
 
+func (r *MatchRepo) FindAll(ctx context.Context) ([]*domain.Match, error) {
+	query := `
+		SELECT id, event_id, home_team, away_team, kickoff_time,
+		       status, home_score, away_score, result_data,
+		       created_at, updated_at
+		FROM matches
+		ORDER BY kickoff_time DESC`
+
+	rows, err := r.db.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("find all matches: %w", err)
+	}
+	defer rows.Close()
+
+	var matches []*domain.Match
+	for rows.Next() {
+		var m domain.Match
+		if err := rows.Scan(
+			&m.ID, &m.EventID, &m.HomeTeam, &m.AwayTeam, &m.KickoffTime,
+			&m.Status, &m.HomeScore, &m.AwayScore, &m.ResultData,
+			&m.CreatedAt, &m.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan match: %w", err)
+		}
+		matches = append(matches, &m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate matches: %w", err)
+	}
+	return matches, nil
+}
+
 func (r *MatchRepo) UpdateResult(ctx context.Context, id uuid.UUID, homeScore, awayScore int) error {
 	query := `
 		UPDATE matches

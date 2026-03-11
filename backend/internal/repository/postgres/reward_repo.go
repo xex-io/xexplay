@@ -261,6 +261,27 @@ func (r *RewardRepo) FindDistributionHistory(ctx context.Context, limit, offset 
 	return scanDistributions(rows)
 }
 
+// CountClaimsByType returns counts of reward distributions grouped by reward_type.
+func (r *RewardRepo) CountClaimsByType(ctx context.Context) (map[string]int, error) {
+	query := `SELECT reward_type, COUNT(*) FROM reward_distributions GROUP BY reward_type`
+	rows, err := r.db.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("count claims by type: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]int)
+	for rows.Next() {
+		var rewardType string
+		var count int
+		if err := rows.Scan(&rewardType, &count); err != nil {
+			return nil, fmt.Errorf("scan claim count: %w", err)
+		}
+		result[rewardType] = count
+	}
+	return result, nil
+}
+
 func scanDistributions(rows pgx.Rows) ([]domain.RewardDistribution, error) {
 	var dists []domain.RewardDistribution
 	for rows.Next() {

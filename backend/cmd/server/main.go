@@ -200,6 +200,33 @@ func main() {
 		// Abuse flags
 		admin.GET("/abuse-flags", handlers.AdminAudit.GetAbuseFlags)
 		admin.POST("/abuse-flags/:id/review", handlers.AdminAudit.ReviewAbuseFlag)
+		admin.GET("/abuse-flags/stats", handlers.AdminDashboard.AdminGetAbuseFlagStats)
+
+		// Leaderboards (admin view)
+		admin.GET("/leaderboards/:type", handlers.AdminDashboard.AdminGetLeaderboard)
+
+		// Analytics
+		admin.GET("/analytics/overview", handlers.AdminDashboard.AdminGetAnalytics)
+
+		// Exchange metrics
+		admin.GET("/exchange/metrics", handlers.AdminDashboard.AdminGetExchangeMetrics)
+
+		// User search and activity
+		admin.GET("/users/search", handlers.AdminDashboard.AdminSearchUsers)
+		admin.GET("/users/:id/activity", handlers.AdminDashboard.AdminGetUserActivity)
+		admin.POST("/users/:id/moderate", handlers.AdminDashboard.AdminModerateUser)
+
+		// Notification history
+		admin.GET("/notifications", handlers.AdminDashboard.AdminListNotifications)
+
+		// Referral stats
+		admin.GET("/referrals/stats", handlers.AdminDashboard.AdminGetReferralStats)
+		admin.GET("/referrals/top", handlers.AdminDashboard.AdminGetTopReferrers)
+
+		// Prize pools
+		admin.GET("/prize-pools", handlers.AdminDashboard.AdminListPrizePools)
+		admin.GET("/prize-pools/history", handlers.AdminDashboard.AdminGetPrizePoolHistory)
+		admin.POST("/prize-pools", handlers.AdminDashboard.AdminCreatePrizePool)
 	}
 
 	// Start cron jobs
@@ -257,46 +284,50 @@ func setupLogging(level string) {
 }
 
 type repositories struct {
-	User        *postgres.UserRepo
-	Event       *postgres.EventRepo
-	Match       *postgres.MatchRepo
-	Card        *postgres.CardRepo
-	Basket      *postgres.BasketRepo
-	Session     *postgres.SessionRepo
-	Answer      *postgres.AnswerRepo
-	Leaderboard *postgres.LeaderboardRepo
-	Streak      *postgres.StreakRepo
-	Reward      *postgres.RewardRepo
-	FCMToken    *postgres.FCMTokenRepo
-	Achievement *postgres.AchievementRepo
-	Referral    *postgres.ReferralRepo
-	MiniLeague  *postgres.MiniLeagueRepo
-	Audit       *postgres.AuditRepo
-	Abuse       *postgres.AbuseRepo
-	Cache       *redis.CacheRepo
-	LBCache     *redis.LeaderboardCache
+	User                *postgres.UserRepo
+	Event               *postgres.EventRepo
+	Match               *postgres.MatchRepo
+	Card                *postgres.CardRepo
+	Basket              *postgres.BasketRepo
+	Session             *postgres.SessionRepo
+	Answer              *postgres.AnswerRepo
+	Leaderboard         *postgres.LeaderboardRepo
+	Streak              *postgres.StreakRepo
+	Reward              *postgres.RewardRepo
+	FCMToken            *postgres.FCMTokenRepo
+	Achievement         *postgres.AchievementRepo
+	Referral            *postgres.ReferralRepo
+	MiniLeague          *postgres.MiniLeagueRepo
+	Audit               *postgres.AuditRepo
+	Abuse               *postgres.AbuseRepo
+	NotificationHistory *postgres.NotificationHistoryRepo
+	PrizePool           *postgres.PrizePoolRepo
+	Cache               *redis.CacheRepo
+	LBCache             *redis.LeaderboardCache
 }
 
 func initRepositories(db *postgres.DB, rdb *redis.Client) *repositories {
 	return &repositories{
-		User:        postgres.NewUserRepo(db),
-		Event:       postgres.NewEventRepo(db),
-		Match:       postgres.NewMatchRepo(db),
-		Card:        postgres.NewCardRepo(db),
-		Basket:      postgres.NewBasketRepo(db),
-		Session:     postgres.NewSessionRepo(db),
-		Answer:      postgres.NewAnswerRepo(db),
-		Leaderboard: postgres.NewLeaderboardRepo(db),
-		Streak:      postgres.NewStreakRepo(db),
-		Reward:      postgres.NewRewardRepo(db),
-		FCMToken:    postgres.NewFCMTokenRepo(db),
-		Achievement: postgres.NewAchievementRepo(db),
-		Referral:    postgres.NewReferralRepo(db),
-		MiniLeague:  postgres.NewMiniLeagueRepo(db),
-		Audit:       postgres.NewAuditRepo(db),
-		Abuse:       postgres.NewAbuseRepo(db),
-		Cache:       redis.NewCacheRepo(rdb),
-		LBCache:     redis.NewLeaderboardCache(rdb),
+		User:                postgres.NewUserRepo(db),
+		Event:               postgres.NewEventRepo(db),
+		Match:               postgres.NewMatchRepo(db),
+		Card:                postgres.NewCardRepo(db),
+		Basket:              postgres.NewBasketRepo(db),
+		Session:             postgres.NewSessionRepo(db),
+		Answer:              postgres.NewAnswerRepo(db),
+		Leaderboard:         postgres.NewLeaderboardRepo(db),
+		Streak:              postgres.NewStreakRepo(db),
+		Reward:              postgres.NewRewardRepo(db),
+		FCMToken:            postgres.NewFCMTokenRepo(db),
+		Achievement:         postgres.NewAchievementRepo(db),
+		Referral:            postgres.NewReferralRepo(db),
+		MiniLeague:          postgres.NewMiniLeagueRepo(db),
+		Audit:               postgres.NewAuditRepo(db),
+		Abuse:               postgres.NewAbuseRepo(db),
+		NotificationHistory: postgres.NewNotificationHistoryRepo(db),
+		PrizePool:           postgres.NewPrizePoolRepo(db),
+		Cache:               redis.NewCacheRepo(rdb),
+		LBCache:             redis.NewLeaderboardCache(rdb),
 	}
 }
 
@@ -382,6 +413,7 @@ type allHandlers struct {
 	AdminReward       *adminHandler.RewardHandler
 	AdminNotification *adminHandler.NotificationHandler
 	AdminAudit        *adminHandler.AuditHandler
+	AdminDashboard    *adminHandler.DashboardHandler
 	Exchange          *handler.ExchangeHandler
 }
 
@@ -401,12 +433,13 @@ func initHandlers(cfg *config.Config, svc *services, repos *repositories, wsHub 
 		WebSocket:         wsHandler.NewWebSocketHandler(wsHub, cfg.JWTSecret),
 		AdminEvent:        adminHandler.NewEventHandler(repos.Event),
 		AdminMatch:        adminHandler.NewMatchHandler(repos.Match),
-		AdminCard:         adminHandler.NewCardHandler(svc.Card),
-		AdminBasket:       adminHandler.NewBasketHandler(),
+		AdminCard:         adminHandler.NewCardHandler(svc.Card, repos.Card),
+		AdminBasket:       adminHandler.NewBasketHandler(repos.Basket),
 		AdminUser:         adminHandler.NewUserHandler(repos.User),
 		AdminReward:       adminHandler.NewRewardHandler(svc.Reward),
 		AdminNotification: adminHandler.NewNotificationHandler(svc.Notification),
 		AdminAudit:        adminHandler.NewAuditHandler(svc.Audit, svc.Abuse),
+		AdminDashboard:    adminHandler.NewDashboardHandler(svc.Leaderboard, svc.Audit, repos.User, repos.Session, repos.Answer, repos.Abuse, repos.Referral, repos.Reward, repos.NotificationHistory, repos.PrizePool),
 		Exchange:          handler.NewExchangeHandler(svc.Reward, repos.User),
 	}
 }
