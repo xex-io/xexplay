@@ -24,6 +24,10 @@ type Config struct {
 
 	// CORS
 	CORSOrigins []string
+
+	// Firebase Cloud Messaging
+	FCMCredentialsFile string
+	FCMCredentialsJSON string
 }
 
 func Load() (*Config, error) {
@@ -37,7 +41,9 @@ func Load() (*Config, error) {
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		JWTSecret:   os.Getenv("JWT_SECRET"),
-		CORSOrigins: []string{getEnv("CORS_ORIGINS", "http://localhost:3000")},
+		CORSOrigins:        []string{getEnv("CORS_ORIGINS", "http://localhost:3000")},
+		FCMCredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
+		FCMCredentialsJSON: os.Getenv("FCM_CREDENTIALS_JSON"),
 	}
 
 	if cfg.DatabaseURL == "" {

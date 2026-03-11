@@ -354,9 +354,27 @@ func initServices(cfg *config.Config, repos *repositories, wsHub *ws.Hub) *servi
 	streakSvc := service.NewStreakService(repos.Streak)
 	rewardSvc := service.NewRewardService(repos.Reward, repos.User, wsHub)
 
-	// Notification service with log sender (swap with FCM sender in production)
-	logSender := service.NewLogSender()
-	notificationSvc := service.NewNotificationService(repos.FCMToken, logSender)
+	// Notification service: use FCM in production, log sender in development
+	var notifSender service.NotificationSender
+	if cfg.FCMCredentialsJSON != "" {
+		fcmSender, err := service.NewFCMSenderFromJSON(cfg.FCMCredentialsJSON)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to initialize FCM sender from JSON")
+		}
+		notifSender = fcmSender
+		log.Info().Msg("using FCM sender for push notifications (from JSON)")
+	} else if cfg.FCMCredentialsFile != "" {
+		fcmSender, err := service.NewFCMSender(cfg.FCMCredentialsFile)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to initialize FCM sender")
+		}
+		notifSender = fcmSender
+		log.Info().Msg("using FCM sender for push notifications (from file)")
+	} else {
+		notifSender = service.NewLogSender()
+		log.Info().Msg("using log sender for push notifications (set FCM_CREDENTIALS_JSON for production)")
+	}
+	notificationSvc := service.NewNotificationService(repos.FCMToken, notifSender)
 
 	// Cron service
 	cronSvc := service.NewCronService(

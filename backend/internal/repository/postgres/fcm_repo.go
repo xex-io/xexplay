@@ -23,8 +23,7 @@ func (r *FCMTokenRepo) RegisterToken(ctx context.Context, token *domain.FCMToken
 	query := `
 		INSERT INTO fcm_tokens (id, user_id, token, device_type, is_active, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, true, NOW(), NOW())
-		ON CONFLICT (token) DO UPDATE SET
-			user_id     = EXCLUDED.user_id,
+		ON CONFLICT (user_id, token) DO UPDATE SET
 			device_type = EXCLUDED.device_type,
 			is_active   = true,
 			updated_at  = NOW()

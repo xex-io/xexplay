@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import '../constants/api_constants.dart';
+import '../config/environment.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/error_interceptor.dart';
 
@@ -9,7 +9,7 @@ class ApiClient {
   ApiClient({required AuthInterceptor authInterceptor}) {
     dio = Dio(
       BaseOptions(
-        baseUrl: ApiConstants.baseUrl,
+        baseUrl: Environment.apiBaseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
         headers: {'Content-Type': 'application/json'},

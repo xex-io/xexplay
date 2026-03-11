@@ -9,6 +9,7 @@ backend/bin/
 backend/.env
 backend/server
 backend/server-linux
+backend/firebase-service-account.json
 
 # Flutter
 app/.dart_tool/
