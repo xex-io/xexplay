@@ -90,7 +90,7 @@ export default function RewardsPage() {
   >({
     queryKey: ["admin-reward-distributions"],
     queryFn: async () => {
-      const res = await apiClient.get("/admin/rewards/distributions");
+      const res = await apiClient.get("/admin/rewards/history");
       return res.data?.data ?? res.data ?? [];
     },
     enabled: activeTab === "distributions",

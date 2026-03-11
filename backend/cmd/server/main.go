@@ -93,7 +93,7 @@ func main() {
 
 	// Authenticated routes
 	authed := router.Group("/v1")
-	authed.Use(middleware.Auth(cfg.JWTSecret))
+	authed.Use(middleware.Auth(cfg.JWTSecret, repos.User))
 	authed.Use(middleware.Locale())
 	authed.Use(middleware.RateLimiter(rdb, 30, time.Minute))
 	{
@@ -152,7 +152,7 @@ func main() {
 
 	// Admin routes
 	admin := router.Group("/v1/admin")
-	admin.Use(middleware.Auth(cfg.JWTSecret))
+	admin.Use(middleware.Auth(cfg.JWTSecret, repos.User))
 	admin.Use(middleware.Admin())
 	admin.Use(middleware.RateLimiter(rdb, 100, time.Minute))
 	admin.Use(middleware.AuditLog(services.Audit))
@@ -437,7 +437,7 @@ func initHandlers(cfg *config.Config, svc *services, repos *repositories, wsHub 
 		AdminBasket:       adminHandler.NewBasketHandler(repos.Basket),
 		AdminUser:         adminHandler.NewUserHandler(repos.User),
 		AdminReward:       adminHandler.NewRewardHandler(svc.Reward),
-		AdminNotification: adminHandler.NewNotificationHandler(svc.Notification),
+		AdminNotification: adminHandler.NewNotificationHandler(svc.Notification, repos.NotificationHistory),
 		AdminAudit:        adminHandler.NewAuditHandler(svc.Audit, svc.Abuse),
 		AdminDashboard:    adminHandler.NewDashboardHandler(svc.Leaderboard, svc.Audit, repos.User, repos.Session, repos.Answer, repos.Abuse, repos.Referral, repos.Reward, repos.NotificationHistory, repos.PrizePool),
 		Exchange:          handler.NewExchangeHandler(svc.Reward, repos.User),
