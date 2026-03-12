@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -90,9 +90,6 @@ function formatDate(dateStr: string): string {
 export default function AutomationPage() {
   const queryClient = useQueryClient();
   const [triggeringJob, setTriggeringJob] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
 
   const { data: sports, isLoading: sportsLoading } = useQuery<Sport[]>({
     queryKey: ["admin-sports"],
@@ -101,7 +98,6 @@ export default function AutomationPage() {
       const d = res.data?.data ?? res.data;
       return Array.isArray(d) ? d : [];
     },
-    enabled: mounted,
   });
 
   const { data: status } = useQuery<Record<string, JobStatus>>({
@@ -112,7 +108,6 @@ export default function AutomationPage() {
       return (d && typeof d === "object" && !Array.isArray(d)) ? d : {};
     },
     refetchInterval: 30000,
-    enabled: mounted,
   });
 
   const { data: logs } = useQuery<AutomationLog[]>({
@@ -123,7 +118,6 @@ export default function AutomationPage() {
       return Array.isArray(d) ? d : [];
     },
     refetchInterval: 30000,
-    enabled: mounted,
   });
 
   const toggleSportMutation = useMutation({

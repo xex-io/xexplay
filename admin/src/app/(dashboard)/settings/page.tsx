@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,6 @@ export default function SettingsPage() {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
 
   const { data: settings, isLoading } = useQuery<SettingView[]>({
     queryKey: ["admin-settings"],
@@ -42,7 +39,6 @@ export default function SettingsPage() {
       const d = res.data?.data ?? res.data;
       return Array.isArray(d) ? d : [];
     },
-    enabled: mounted,
   });
 
   const updateMutation = useMutation({

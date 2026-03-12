@@ -442,7 +442,7 @@ export default function TranslationsPage() {
               </TableRow>
             ) : (
               filtered.map((item) => {
-                const { present, missing } = getTranslationStatus(
+                const { present } = getTranslationStatus(
                   item.texts,
                   selectedLangs
                 );
