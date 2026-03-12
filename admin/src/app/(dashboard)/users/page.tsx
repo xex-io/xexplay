@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 import { asArray } from "@/lib/loc-str";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -41,13 +40,13 @@ interface PaginatedResponse {
 
 const PER_PAGE = 20;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function UserRow({
   user,
   toggleMutation,
   showAdminToggle,
 }: {
   user: User;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   toggleMutation: any;
   showAdminToggle?: boolean;
 }) {
