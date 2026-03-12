@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import { ShieldCheck, ShieldX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,7 @@ export default function AbusePage() {
       const res = await apiClient.get("/admin/abuse-flags", {
         params: { status: "pending" },
       });
-      return res.data?.data ?? res.data ?? [];
+      return asArray<AbuseFlag>(res);
     },
     enabled: activeTab === "pending",
   });
@@ -83,7 +84,7 @@ export default function AbusePage() {
       const res = await apiClient.get("/admin/abuse-flags", {
         params: { status: "reviewed" },
       });
-      return res.data?.data ?? res.data ?? [];
+      return asArray<AbuseFlag>(res);
     },
     enabled: activeTab === "reviewed",
   });

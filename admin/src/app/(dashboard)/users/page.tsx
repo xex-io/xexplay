@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableHeader,
@@ -14,7 +17,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Shield } from "lucide-react";
 
 interface User {
   id: string;
@@ -38,11 +41,65 @@ interface PaginatedResponse {
 
 const PER_PAGE = 20;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function UserRow({
+  user,
+  toggleMutation,
+  showAdminToggle,
+}: {
+  user: User;
+  toggleMutation: any;
+  showAdminToggle?: boolean;
+}) {
+  return (
+    <TableRow>
+      <TableCell>{user.email || "-"}</TableCell>
+      <TableCell>{user.display_name || "-"}</TableCell>
+      <TableCell className="font-mono text-muted-foreground">
+        {user.xex_user_id?.slice(0, 8) || "-"}
+      </TableCell>
+      <TableCell className="font-mono">
+        {(user.total_points ?? 0).toLocaleString()}
+      </TableCell>
+      <TableCell>
+        <Switch
+          checked={user.is_active}
+          onCheckedChange={(checked: boolean) =>
+            toggleMutation.mutate({
+              id: user.id,
+              data: { is_active: checked },
+            })
+          }
+          disabled={toggleMutation.isPending}
+        />
+      </TableCell>
+      {showAdminToggle && (
+        <TableCell>
+          <Switch
+            checked={user.role === "admin"}
+            onCheckedChange={(checked: boolean) =>
+              toggleMutation.mutate({
+                id: user.id,
+                data: { role: checked ? "admin" : "user" },
+              })
+            }
+            disabled={toggleMutation.isPending}
+          />
+        </TableCell>
+      )}
+      <TableCell className="text-muted-foreground">
+        {new Date(user.created_at).toLocaleDateString()}
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const queryClient = useQueryClient();
 
   function handleSearchChange(value: string) {
     setSearch(value);
@@ -79,17 +136,30 @@ export default function UsersPage() {
       const res = await apiClient.get("/admin/users/search", {
         params: { q: debouncedSearch },
       });
-      return res.data?.data ?? res.data ?? [];
+      return asArray<User>(res);
     },
     enabled: isSearching,
   });
 
-  const users = isSearching
-    ? searchResponse ?? []
-    : listResponse?.data ?? [];
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      return apiClient.put(`/admin/users/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users-search"] });
+    },
+  });
+
+  const allUsers = isSearching
+    ? (Array.isArray(searchResponse) ? searchResponse : [])
+    : (Array.isArray(listResponse?.data) ? listResponse.data : []);
   const total = listResponse?.meta?.total ?? 0;
   const totalPages = Math.ceil(total / PER_PAGE);
   const isLoading = isSearching ? searchLoading : listLoading;
+
+  const admins = useMemo(() => allUsers.filter((u) => u.role === "admin"), [allUsers]);
+  const regularUsers = useMemo(() => allUsers.filter((u) => u.role !== "admin"), [allUsers]);
 
   return (
     <div>
@@ -107,66 +177,96 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Display Name</TableHead>
-              <TableHead>XEX User ID</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Points</TableHead>
-              <TableHead>Joined</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
+      {/* Admins Section */}
+      {admins.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
+              <Shield className="size-4" />
+              Administrators ({admins.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Display Name</TableHead>
+                  <TableHead>XEX User ID</TableHead>
+                  <TableHead>Points</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead>Admin</TableHead>
+                  <TableHead>Joined</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {admins.map((user) => (
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    toggleMutation={toggleMutation}
+                    showAdminToggle
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Regular Users Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+            Users {!isLoading && `(${isSearching ? regularUsers.length : total})`}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  {isSearching ? "Searching..." : "Loading users..."}
-                </TableCell>
+                <TableHead>Email</TableHead>
+                <TableHead>Display Name</TableHead>
+                <TableHead>XEX User ID</TableHead>
+                <TableHead>Points</TableHead>
+                <TableHead>Active</TableHead>
+                <TableHead>Joined</TableHead>
               </TableRow>
-            ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  {isSearching
-                    ? "No users match your search."
-                    : "No users found."}
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.email || "-"}</TableCell>
-                  <TableCell>{user.display_name || "-"}</TableCell>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {user.xex_user_id?.slice(0, 8) || "-"}
-                  </TableCell>
-                  <TableCell>
-                    {user.role === "admin" ? (
-                      <Badge variant="default">Admin</Badge>
-                    ) : (
-                      <Badge variant="outline">User</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono">
-                    {(user.total_points ?? 0).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(user.created_at).toLocaleDateString()}
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="h-24 text-center text-muted-foreground"
+                  >
+                    {isSearching ? "Searching..." : "Loading users..."}
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : regularUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="h-24 text-center text-muted-foreground"
+                  >
+                    {isSearching
+                      ? "No users match your search."
+                      : "No users found."}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                regularUsers.map((user) => (
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    toggleMutation={toggleMutation}
+                  />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Pagination controls - only shown for list view */}
       {!isSearching && totalPages > 1 && (

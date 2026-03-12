@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 import { Separator } from "@/components/ui/separator";
 import {
   LayoutDashboard,
@@ -22,6 +23,9 @@ import {
   Shield,
   Flag,
   ClipboardList,
+  Bot,
+  Settings,
+  LogOut,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -61,12 +65,21 @@ const navSections: NavSection[] = [
       { label: "Moderation", href: "/moderation", icon: Shield },
       { label: "Abuse Flags", href: "/abuse", icon: Flag },
       { label: "Audit Log", href: "/audit", icon: ClipboardList },
+      { label: "Automation", href: "/automation", icon: Bot },
+      { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
 
   return (
     <aside className="w-64 min-h-screen bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
@@ -74,7 +87,7 @@ export default function Sidebar() {
         XEX Play
       </div>
       <Separator className="bg-sidebar-border" />
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navSections.map((section, sIdx) => (
           <div key={sIdx}>
             {section.title && (
@@ -110,6 +123,30 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
+
+      <Separator className="bg-sidebar-border" />
+      <div className="px-3 py-3">
+        <div className="flex items-center gap-3 px-3 py-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-xs font-bold">
+            {user?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "A"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {user?.display_name || "Admin"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user?.email || ""}
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="p-1.5 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

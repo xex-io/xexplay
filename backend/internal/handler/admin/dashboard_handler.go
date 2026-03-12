@@ -515,6 +515,112 @@ func (h *DashboardHandler) AdminCreatePrizePool(c *gin.Context) {
 	response.Created(c, pool)
 }
 
+// --- 14. PUT /admin/prize-pools/:id ---
+
+type updatePrizePoolRequest struct {
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	TotalAmount *float64 `json:"total_amount"`
+	Currency    string  `json:"currency"`
+	Status      string  `json:"status"`
+	StartDate   *string `json:"start_date"`
+	EndDate     *string `json:"end_date"`
+}
+
+// AdminUpdatePrizePool updates an existing prize pool.
+func (h *DashboardHandler) AdminUpdatePrizePool(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		response.BadRequest(c, "invalid prize pool id")
+		return
+	}
+
+	var req updatePrizePoolRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request body")
+		return
+	}
+
+	pool, err := h.prizePoolRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		response.InternalError(c, "failed to fetch prize pool")
+		return
+	}
+	if pool == nil {
+		response.NotFound(c, "prize pool not found")
+		return
+	}
+
+	if req.Name != "" {
+		pool.Name = req.Name
+	}
+	if req.Description != "" {
+		pool.Description = req.Description
+	}
+	if req.TotalAmount != nil {
+		pool.TotalAmount = *req.TotalAmount
+	}
+	if req.Currency != "" {
+		pool.Currency = req.Currency
+	}
+	if req.Status != "" {
+		pool.Status = req.Status
+	}
+	if req.StartDate != nil {
+		t, err := time.Parse(time.RFC3339, *req.StartDate)
+		if err != nil {
+			response.BadRequest(c, "invalid start_date format, use RFC3339")
+			return
+		}
+		pool.StartDate = &t
+	}
+	if req.EndDate != nil {
+		t, err := time.Parse(time.RFC3339, *req.EndDate)
+		if err != nil {
+			response.BadRequest(c, "invalid end_date format, use RFC3339")
+			return
+		}
+		pool.EndDate = &t
+	}
+
+	if err := h.prizePoolRepo.Update(c.Request.Context(), pool); err != nil {
+		response.InternalError(c, "failed to update prize pool: "+err.Error())
+		return
+	}
+
+	response.OK(c, pool)
+}
+
+// --- 15. DELETE /admin/prize-pools/:id ---
+
+// AdminCancelPrizePool cancels a prize pool (sets status to "cancelled").
+func (h *DashboardHandler) AdminCancelPrizePool(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		response.BadRequest(c, "invalid prize pool id")
+		return
+	}
+
+	pool, err := h.prizePoolRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		response.InternalError(c, "failed to fetch prize pool")
+		return
+	}
+	if pool == nil {
+		response.NotFound(c, "prize pool not found")
+		return
+	}
+
+	if err := h.prizePoolRepo.UpdateStatus(c.Request.Context(), id, "cancelled"); err != nil {
+		response.InternalError(c, "failed to cancel prize pool: "+err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "prize pool cancelled"})
+}
+
 // --- helpers ---
 
 func parsePagination(c *gin.Context) (limit, offset int) {

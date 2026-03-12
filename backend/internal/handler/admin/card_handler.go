@@ -179,6 +179,49 @@ func (h *CardHandler) Update(c *gin.Context) {
 	response.OK(c, card)
 }
 
+// Delete handles DELETE /admin/cards/:id
+func (h *CardHandler) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		response.BadRequest(c, "invalid card id")
+		return
+	}
+
+	card, err := h.cardRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		response.InternalError(c, "failed to fetch card")
+		return
+	}
+	if card == nil {
+		response.NotFound(c, "card not found")
+		return
+	}
+
+	if card.IsResolved {
+		response.BadRequest(c, "cannot delete a resolved card")
+		return
+	}
+
+	// Guard: cannot delete card with answers
+	count, err := h.cardRepo.CountAnswersByCardID(c.Request.Context(), id)
+	if err != nil {
+		response.InternalError(c, "failed to check card answers")
+		return
+	}
+	if count > 0 {
+		response.BadRequest(c, "cannot delete card with existing answers")
+		return
+	}
+
+	if err := h.cardRepo.Delete(c.Request.Context(), id); err != nil {
+		response.InternalError(c, "failed to delete card: "+err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "card deleted"})
+}
+
 type resolveCardRequest struct {
 	CorrectAnswer bool `json:"correct_answer"`
 }

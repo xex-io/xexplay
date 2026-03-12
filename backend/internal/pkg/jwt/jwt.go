@@ -16,6 +16,16 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// Sign creates a new JWT token with the given claims, signed with the shared secret.
+func Sign(claims *Claims, secret string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign token: %w", err)
+	}
+	return signed, nil
+}
+
 // Parse validates and parses an Exchange-issued JWT using the shared secret.
 func Parse(tokenString, secret string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -33,7 +34,9 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Check, Plus, AlertCircle } from "lucide-react";
+import { Check, Plus, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import { ActionsMenu } from "@/components/actions-menu";
+import { DeleteDialog } from "@/components/delete-dialog";
 
 interface CardItem {
   id: string;
@@ -45,6 +48,7 @@ interface CardItem {
   is_resolved: boolean;
   available_date: string;
   expires_at: string;
+  source?: string;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +75,11 @@ function truncate(text: string, len: number): string {
   return text.length > len ? text.slice(0, len) + "..." : text;
 }
 
+function toDateInputValue(isoString: string): string {
+  if (!isoString) return "";
+  return isoString.slice(0, 10);
+}
+
 export default function CardsPage() {
   const queryClient = useQueryClient();
   const [dateFilter, setDateFilter] = useState("");
@@ -78,11 +87,19 @@ export default function CardsPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editCard, setEditCard] = useState<CardItem | null>(null);
+  const [deleteCard, setDeleteCard] = useState<CardItem | null>(null);
   const [createForm, setCreateForm] = useState({
     match_id: "",
     question_en: "",
     question_fa: "",
     question_ar: "",
+    tier: "white",
+    available_date: "",
+    expires_at: "",
+  });
+  const [editForm, setEditForm] = useState({
+    question_en: "",
     tier: "white",
     available_date: "",
     expires_at: "",
@@ -94,7 +111,7 @@ export default function CardsPage() {
       const params: Record<string, string> = {};
       if (dateFilter) params.date = dateFilter;
       const res = await apiClient.get("/admin/cards", { params });
-      return res.data?.data ?? res.data ?? [];
+      return asArray<CardItem>(res);
     },
   });
 
@@ -102,7 +119,7 @@ export default function CardsPage() {
     queryKey: ["admin-matches"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/matches");
-      return res.data?.data ?? res.data ?? [];
+      return asArray<Match>(res);
     },
   });
 
@@ -157,6 +174,37 @@ export default function CardsPage() {
     },
   });
 
+  const editMutation = useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: {
+        question_text: Record<string, string>;
+        tier: string;
+        available_date: string;
+        expires_at: string;
+      };
+    }) => {
+      return apiClient.put(`/admin/cards/${id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-cards"] });
+      setEditCard(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiClient.delete(`/admin/cards/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-cards"] });
+      setDeleteCard(null);
+    },
+  });
+
   function openModal(card: CardItem) {
     setResolveModal(card);
     setSelectedAnswer(null);
@@ -200,6 +248,41 @@ export default function CardsPage() {
         ? createForm.expires_at + "T23:59:59Z"
         : "",
     });
+  }
+
+  function openEditDialog(card: CardItem) {
+    setEditForm({
+      question_en: getQuestionText(card.question_text),
+      tier: card.tier,
+      available_date: toDateInputValue(card.available_date),
+      expires_at: toDateInputValue(card.expires_at),
+    });
+    setEditCard(card);
+  }
+
+  function handleEditCard() {
+    if (!editCard) return;
+    const questionText: Record<string, string> = {};
+    if (editForm.question_en) questionText.en = editForm.question_en;
+
+    editMutation.mutate({
+      id: editCard.id,
+      payload: {
+        question_text: questionText,
+        tier: editForm.tier,
+        available_date: editForm.available_date
+          ? editForm.available_date + "T00:00:00Z"
+          : "",
+        expires_at: editForm.expires_at
+          ? editForm.expires_at + "T23:59:59Z"
+          : "",
+      },
+    });
+  }
+
+  function handleDeleteCard() {
+    if (!deleteCard) return;
+    deleteMutation.mutate(deleteCard.id);
   }
 
   function getMatchLabel(matchId: string): string {
@@ -283,6 +366,7 @@ export default function CardsPage() {
                     >
                       {card.tier}
                     </Badge>
+                    {card.source === "ai" && <Badge variant="outline" className="ml-1 text-xs">AI</Badge>}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {getMatchLabel(card.match_id)}
@@ -305,15 +389,29 @@ export default function CardsPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {!card.is_resolved && (
-                      <Button
-                        size="xs"
-                        variant="secondary"
-                        onClick={() => openModal(card)}
-                      >
-                        Resolve
-                      </Button>
-                    )}
+                    <ActionsMenu
+                      items={[
+                        {
+                          label: "Edit",
+                          icon: Pencil,
+                          onClick: () => openEditDialog(card),
+                          disabled: card.is_resolved,
+                        },
+                        {
+                          label: "Resolve",
+                          icon: Check,
+                          onClick: () => openModal(card),
+                          disabled: card.is_resolved,
+                        },
+                        {
+                          label: "Delete",
+                          icon: Trash2,
+                          onClick: () => setDeleteCard(card),
+                          variant: "destructive",
+                          disabled: card.is_resolved,
+                        },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ))
@@ -586,6 +684,124 @@ export default function CardsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Card Dialog */}
+      <Dialog
+        open={editCard !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditCard(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Card</DialogTitle>
+            <DialogDescription>
+              Update the card details. Resolved cards cannot be edited.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Question (English)</Label>
+              <Textarea
+                value={editForm.question_en}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, question_en: e.target.value })
+                }
+                placeholder="Will Team A win?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tier</Label>
+              <Select
+                value={editForm.tier}
+                onValueChange={(val) =>
+                  setEditForm({ ...editForm, tier: val ?? "white" })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="white">White</SelectItem>
+                  <SelectItem value="silver">Silver</SelectItem>
+                  <SelectItem value="gold">Gold</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-2">
+                <Label>Available Date</Label>
+                <Input
+                  type="date"
+                  value={editForm.available_date}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      available_date: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label>Expires At</Label>
+                <Input
+                  type="date"
+                  value={editForm.expires_at}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      expires_at: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCard(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditCard}
+              disabled={
+                editMutation.isPending ||
+                !editForm.question_en ||
+                !editForm.available_date ||
+                !editForm.expires_at
+              }
+            >
+              {editMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+          {editMutation.isError && (
+            <p className="text-sm text-destructive">
+              Failed to update card. Please try again.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Card Dialog */}
+      <DeleteDialog
+        open={deleteCard !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteCard(null);
+        }}
+        title="Delete Card"
+        description={
+          deleteCard
+            ? `Are you sure you want to delete the card "${truncate(getQuestionText(deleteCard.question_text), 60)}"? This action cannot be undone.`
+            : ""
+        }
+        onConfirm={handleDeleteCard}
+        isPending={deleteMutation.isPending}
+        isError={deleteMutation.isError}
+      />
     </div>
   );
 }

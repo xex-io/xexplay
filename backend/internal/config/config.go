@@ -26,9 +26,17 @@ type Config struct {
 	// CORS
 	CORSOrigins []string
 
+	// Exchange API (for admin auth validation)
+	ExchangeAPIURL string
+
 	// Firebase Cloud Messaging
 	FCMCredentialsFile string
 	FCMCredentialsJSON string
+
+	// Sports Automation
+	OddsAPIKey       string
+	AnthropicAPIKey  string
+	AutoSportsEnabled bool
 }
 
 func Load() (*Config, error) {
@@ -36,15 +44,19 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		Port:        getEnv("PORT", "8080"),
-		Environment: getEnv("ENVIRONMENT", "development"),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
-		JWTSecret:   os.Getenv("JWT_SECRET"),
+		Port:               getEnv("PORT", "8080"),
+		Environment:        getEnv("ENVIRONMENT", "development"),
+		LogLevel:           getEnv("LOG_LEVEL", "info"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		RedisURL:           getEnv("REDIS_URL", "redis://localhost:6379"),
+		JWTSecret:          os.Getenv("JWT_SECRET"),
 		CORSOrigins:        parseCORSOrigins(getEnv("CORS_ORIGINS", "http://localhost:3000")),
+		ExchangeAPIURL:     getEnv("EXCHANGE_API_URL", "https://api.xex.to"),
 		FCMCredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
 		FCMCredentialsJSON: os.Getenv("FCM_CREDENTIALS_JSON"),
+		OddsAPIKey:         os.Getenv("ODDS_API_KEY"),
+		AnthropicAPIKey:    os.Getenv("ANTHROPIC_API_KEY"),
+		AutoSportsEnabled:  getEnv("AUTO_SPORTS_ENABLED", "true") == "true",
 	}
 
 	if cfg.DatabaseURL == "" {

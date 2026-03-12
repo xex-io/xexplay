@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import {
   Card,
   CardContent,
@@ -46,7 +47,7 @@ export default function ReferralsPage() {
     queryKey: ["admin-referral-top"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/referrals/top");
-      return res.data?.data ?? res.data ?? [];
+      return asArray<TopReferrer>(res);
     },
   });
 

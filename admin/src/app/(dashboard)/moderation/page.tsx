@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import { Search, ShieldAlert, Ban, CheckCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,7 @@ export default function ModerationPage() {
       const res = await apiClient.get("/admin/users/search", {
         params: { q: searchTerm },
       });
-      return res.data?.data ?? res.data ?? [];
+      return asArray<SearchResult>(res);
     },
     enabled: searchTerm.length > 0,
   });
@@ -108,7 +109,7 @@ export default function ModerationPage() {
     queryKey: ["admin-user-activity", selectedUserId],
     queryFn: async () => {
       const res = await apiClient.get(`/admin/users/${selectedUserId}/activity`);
-      return res.data?.data ?? res.data ?? [];
+      return asArray<ActivityEntry>(res);
     },
     enabled: !!selectedUserId,
   });

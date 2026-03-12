@@ -28,7 +28,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
           {label}
         </p>
-        <p className="text-2xl font-bold text-foreground">
+        <p className="text-2xl font-bold text-foreground" suppressHydrationWarning>
           {typeof value === "number" ? value.toLocaleString() : value}
         </p>
       </CardContent>
@@ -50,14 +50,15 @@ export default function ExchangeMetricsPage() {
     queryKey: ["admin-exchange-metrics"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/exchange/metrics");
-      return res.data?.data ?? res.data ?? defaultMetrics;
+      const d = res.data?.data ?? res.data;
+      return { ...defaultMetrics, ...(d && typeof d === "object" && !Array.isArray(d) ? d : {}) };
     },
   });
 
-  const tierEntries = Object.entries(metrics.trading_tier_distribution);
+  const tierEntries = Object.entries(metrics.trading_tier_distribution ?? {});
   const totalTierUsers = tierEntries.reduce((sum, [, count]) => sum + count, 0);
 
-  const rewardEntries = Object.entries(metrics.reward_claims_by_type);
+  const rewardEntries = Object.entries(metrics.reward_claims_by_type ?? {});
   const totalRewardClaims = rewardEntries.reduce((sum, [, count]) => sum + count, 0);
 
   return (
@@ -70,9 +71,9 @@ export default function ExchangeMetricsPage() {
         <>
           {/* Overview Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            <StatCard label="Linked Users" value={metrics.linked_users} />
-            <StatCard label="Total Users" value={metrics.total_users} />
-            <StatCard label="Link Rate" value={`${(metrics.link_rate * 100).toFixed(1)}%`} />
+            <StatCard label="Linked Users" value={metrics.linked_users ?? 0} />
+            <StatCard label="Total Users" value={metrics.total_users ?? 0} />
+            <StatCard label="Link Rate" value={`${((metrics.link_rate ?? 0) * 100).toFixed(1)}%`} />
           </div>
 
           {/* Trading Tier Distribution & Reward Claims */}
@@ -178,16 +179,16 @@ export default function ExchangeMetricsPage() {
             <CardContent>
               <div className="flex items-end gap-3 mb-4">
                 <span className="text-4xl font-bold text-foreground">
-                  {(metrics.link_rate * 100).toFixed(1)}%
+                  {((metrics.link_rate ?? 0) * 100).toFixed(1)}%
                 </span>
                 <span className="text-sm text-muted-foreground mb-1">
-                  {metrics.linked_users.toLocaleString()} of {metrics.total_users.toLocaleString()} users linked to exchange
+                  {(metrics.linked_users ?? 0).toLocaleString()} of {(metrics.total_users ?? 0).toLocaleString()} users linked to exchange
                 </span>
               </div>
               <div className="w-full bg-muted rounded-full h-3">
                 <div
                   className="bg-primary h-3 rounded-full transition-all"
-                  style={{ width: `${Math.min(metrics.link_rate * 100, 100)}%` }}
+                  style={{ width: `${Math.min((metrics.link_rate ?? 0) * 100, 100)}%` }}
                 />
               </div>
             </CardContent>

@@ -165,6 +165,22 @@ func (r *BasketRepo) Update(ctx context.Context, b *domain.DailyBasket) error {
 	return nil
 }
 
+func (r *BasketRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	// Remove cards first, then the basket
+	if err := r.RemoveAllCards(ctx, id); err != nil {
+		return fmt.Errorf("delete basket cards: %w", err)
+	}
+	query := `DELETE FROM daily_baskets WHERE id = $1`
+	ct, err := r.db.Pool.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("delete basket: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("delete basket: basket not found")
+	}
+	return nil
+}
+
 func (r *BasketRepo) RemoveAllCards(ctx context.Context, basketID uuid.UUID) error {
 	query := `DELETE FROM daily_basket_cards WHERE basket_id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, basketID)
@@ -226,6 +242,7 @@ func (r *BasketRepo) GetCardsForBasket(ctx context.Context, basketID uuid.UUID) 
 	query := `
 		SELECT c.id, c.match_id, c.question_text, c.tier, c.high_answer_is_yes,
 		       c.correct_answer, c.is_resolved, c.available_date, c.expires_at,
+		       c.source, c.ai_prompt_data, c.resolution_criteria,
 		       c.created_at, c.updated_at
 		FROM cards c
 		JOIN daily_basket_cards bc ON bc.card_id = c.id
@@ -240,15 +257,11 @@ func (r *BasketRepo) GetCardsForBasket(ctx context.Context, basketID uuid.UUID) 
 
 	var cards []*domain.Card
 	for rows.Next() {
-		var c domain.Card
-		if err := rows.Scan(
-			&c.ID, &c.MatchID, &c.QuestionText, &c.Tier, &c.HighAnswerIsYes,
-			&c.CorrectAnswer, &c.IsResolved, &c.AvailableDate, &c.ExpiresAt,
-			&c.CreatedAt, &c.UpdatedAt,
-		); err != nil {
+		c, err := scanCard(rows.Scan)
+		if err != nil {
 			return nil, fmt.Errorf("scan basket card: %w", err)
 		}
-		cards = append(cards, &c)
+		cards = append(cards, c)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate basket cards: %w", err)

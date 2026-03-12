@@ -160,6 +160,38 @@ func (h *BasketHandler) Update(c *gin.Context) {
 	response.OK(c, basket)
 }
 
+// Delete handles DELETE /admin/baskets/:id
+func (h *BasketHandler) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		response.BadRequest(c, "invalid basket id")
+		return
+	}
+
+	basket, err := h.basketRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		response.InternalError(c, "failed to fetch basket")
+		return
+	}
+	if basket == nil {
+		response.NotFound(c, "basket not found")
+		return
+	}
+
+	if basket.IsPublished {
+		response.BadRequest(c, "cannot delete a published basket")
+		return
+	}
+
+	if err := h.basketRepo.Delete(c.Request.Context(), id); err != nil {
+		response.InternalError(c, "failed to delete basket: "+err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "basket deleted"})
+}
+
 // Publish handles POST /admin/baskets/:id/publish
 func (h *BasketHandler) Publish(c *gin.Context) {
 	idParam := c.Param("id")

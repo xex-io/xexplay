@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import {
   Table,
   TableHeader,
@@ -124,7 +125,7 @@ export default function LeaderboardsPage() {
     queryFn: async () => {
       const params = needsPeriod ? `?period_key=${periodKey}` : "";
       const res = await apiClient.get(`/admin/leaderboards/${activeTab}${params}`);
-      return res.data?.data ?? res.data ?? [];
+      return asArray<LeaderboardEntry>(res);
     },
   });
 

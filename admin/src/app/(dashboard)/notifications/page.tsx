@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import { Send, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,7 @@ export default function NotificationsPage() {
     queryKey: ["admin-notifications"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/notifications");
-      return res.data?.data ?? res.data ?? [];
+      return asArray<NotificationHistory>(res);
     },
   });
 

@@ -16,6 +16,8 @@ type Event struct {
 	EndDate           time.Time       `json:"end_date"`
 	IsActive          bool            `json:"is_active"`
 	ScoringMultiplier float64         `json:"scoring_multiplier"`
+	Source            string          `json:"source"`
+	SportKey          string          `json:"sport_key,omitempty"`
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 }

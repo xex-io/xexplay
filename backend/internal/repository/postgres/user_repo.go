@@ -95,6 +95,64 @@ func (r *UserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, er
 	return &u, nil
 }
 
+func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	query := `
+		SELECT id, xex_user_id, display_name, email, avatar_url, role,
+		       referral_code, referred_by, language, total_points, is_active,
+		       COALESCE(trading_tier, ''), COALESCE(exchange_status, ''),
+		       created_at, updated_at
+		FROM users
+		WHERE email = $1`
+
+	var u domain.User
+	err := r.db.Pool.QueryRow(ctx, query, email).Scan(
+		&u.ID, &u.XexUserID, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Role,
+		&u.ReferralCode, &u.ReferredBy, &u.Language, &u.TotalPoints, &u.IsActive,
+		&u.TradingTier, &u.ExchangeStatus,
+		&u.CreatedAt, &u.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("find user by email: %w", err)
+	}
+	return &u, nil
+}
+
+func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
+	query := `
+		INSERT INTO users (id, xex_user_id, display_name, email, avatar_url, role,
+		                    referral_code, referred_by, language, total_points, is_active,
+		                    trading_tier, exchange_status,
+		                    created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+		RETURNING created_at, updated_at`
+
+	err := r.db.Pool.QueryRow(ctx, query,
+		u.ID, u.XexUserID, u.DisplayName, u.Email, u.AvatarURL, u.Role,
+		u.ReferralCode, u.ReferredBy, u.Language, u.TotalPoints, u.IsActive,
+		u.TradingTier, u.ExchangeStatus,
+	).Scan(&u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("create user: %w", err)
+	}
+	return nil
+}
+
+func (r *UserRepo) Update(ctx context.Context, u *domain.User) error {
+	query := `
+		UPDATE users
+		SET display_name = $2, role = $3, is_active = $4, updated_at = NOW()
+		WHERE id = $1`
+
+	_, err := r.db.Pool.Exec(ctx, query, u.ID, u.DisplayName, u.Role, u.IsActive)
+	if err != nil {
+		return fmt.Errorf("update user: %w", err)
+	}
+	return nil
+}
+
 func (r *UserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, displayName, avatarURL, language string) error {
 	query := `
 		UPDATE users

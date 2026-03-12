@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/xex-exchange/xexplay-api/internal/domain"
@@ -31,6 +32,60 @@ func (r *PrizePoolRepo) Create(ctx context.Context, p *domain.PrizePool) error {
 	).Scan(&p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("create prize pool: %w", err)
+	}
+	return nil
+}
+
+// FindByID returns a single prize pool by ID.
+func (r *PrizePoolRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.PrizePool, error) {
+	query := `
+		SELECT id, name, description, total_amount, currency, status,
+		       start_date, end_date, created_by, created_at, updated_at
+		FROM prize_pools
+		WHERE id = $1`
+
+	var p domain.PrizePool
+	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
+		&p.ID, &p.Name, &p.Description, &p.TotalAmount, &p.Currency, &p.Status,
+		&p.StartDate, &p.EndDate, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("find prize pool by id: %w", err)
+	}
+	return &p, nil
+}
+
+// Update updates an existing prize pool.
+func (r *PrizePoolRepo) Update(ctx context.Context, p *domain.PrizePool) error {
+	query := `
+		UPDATE prize_pools
+		SET name = $2, description = $3, total_amount = $4, currency = $5, status = $6,
+		    start_date = $7, end_date = $8, updated_at = NOW()
+		WHERE id = $1
+		RETURNING updated_at`
+
+	err := r.db.Pool.QueryRow(ctx, query,
+		p.ID, p.Name, p.Description, p.TotalAmount, p.Currency, p.Status,
+		p.StartDate, p.EndDate,
+	).Scan(&p.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("update prize pool: %w", err)
+	}
+	return nil
+}
+
+// UpdateStatus updates only the status of a prize pool.
+func (r *PrizePoolRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
+	query := `UPDATE prize_pools SET status = $2, updated_at = NOW() WHERE id = $1`
+	ct, err := r.db.Pool.Exec(ctx, query, id, status)
+	if err != nil {
+		return fmt.Errorf("update prize pool status: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("update prize pool status: pool not found")
 	}
 	return nil
 }

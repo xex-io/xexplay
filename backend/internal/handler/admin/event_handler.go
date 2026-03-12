@@ -147,3 +147,20 @@ func (h *EventHandler) Update(c *gin.Context) {
 
 	response.OK(c, event)
 }
+
+// Delete handles DELETE /admin/events/:id (soft-delete via is_active=false)
+func (h *EventHandler) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		response.BadRequest(c, "invalid event id")
+		return
+	}
+
+	if err := h.eventRepo.SoftDelete(c.Request.Context(), id); err != nil {
+		response.InternalError(c, "failed to delete event: "+err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "event deactivated"})
+}

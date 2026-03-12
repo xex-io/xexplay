@@ -38,17 +38,20 @@ const (
 )
 
 type Card struct {
-	ID              uuid.UUID       `json:"id"`
-	MatchID         uuid.UUID       `json:"match_id"`
-	QuestionText    json.RawMessage `json:"question_text"`     // JSONB: {"en": "...", "fa": "..."}
-	Tier            string          `json:"tier"`               // gold, silver, white
-	HighAnswerIsYes *bool           `json:"high_answer_is_yes"` // NULL for white
-	CorrectAnswer   *bool           `json:"correct_answer"`     // NULL until resolved
-	IsResolved      bool            `json:"is_resolved"`
-	AvailableDate   time.Time       `json:"available_date"`
-	ExpiresAt       time.Time       `json:"expires_at"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
+	ID                 uuid.UUID       `json:"id"`
+	MatchID            uuid.UUID       `json:"match_id"`
+	QuestionText       json.RawMessage `json:"question_text"`     // JSONB: {"en": "...", "fa": "..."}
+	Tier               string          `json:"tier"`               // gold, silver, white
+	HighAnswerIsYes    *bool           `json:"high_answer_is_yes"` // NULL for white
+	CorrectAnswer      *bool           `json:"correct_answer"`     // NULL until resolved
+	IsResolved         bool            `json:"is_resolved"`
+	AvailableDate      time.Time       `json:"available_date"`
+	ExpiresAt          time.Time       `json:"expires_at"`
+	Source             string          `json:"source"`
+	AIPromptData       json.RawMessage `json:"ai_prompt_data,omitempty"`
+	ResolutionCriteria string          `json:"resolution_criteria,omitempty"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
 // PointsForAnswer returns the points a user would earn for a given answer on this card, if correct.

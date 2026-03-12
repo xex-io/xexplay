@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/xex-exchange/xexplay-api/internal/config"
+	"github.com/xex-exchange/xexplay-api/internal/external/oddsapi"
 	"github.com/xex-exchange/xexplay-api/internal/handler"
 	adminHandler "github.com/xex-exchange/xexplay-api/internal/handler/admin"
 	wsHandler "github.com/xex-exchange/xexplay-api/internal/handler/ws"
@@ -150,10 +151,9 @@ func main() {
 	// WebSocket (authenticated via token query param)
 	router.GET("/ws", handlers.WebSocket.Handle)
 
-	// Admin routes
+	// Admin routes (authenticated via Exchange admin session)
 	admin := router.Group("/v1/admin")
-	admin.Use(middleware.Auth(cfg.JWTSecret, repos.User))
-	admin.Use(middleware.Admin())
+	admin.Use(middleware.ExchangeAdminAuth(cfg.ExchangeAPIURL))
 	admin.Use(middleware.RateLimiter(rdb, 100, time.Minute))
 	admin.Use(middleware.AuditLog(services.Audit))
 	{
@@ -161,22 +161,26 @@ func main() {
 		admin.GET("/events", handlers.AdminEvent.List)
 		admin.POST("/events", handlers.AdminEvent.Create)
 		admin.PUT("/events/:id", handlers.AdminEvent.Update)
+		admin.DELETE("/events/:id", handlers.AdminEvent.Delete)
 
 		// Matches
 		admin.GET("/matches", handlers.AdminMatch.List)
 		admin.POST("/matches", handlers.AdminMatch.Create)
 		admin.PUT("/matches/:id", handlers.AdminMatch.Update)
+		admin.DELETE("/matches/:id", handlers.AdminMatch.Delete)
 
 		// Cards
 		admin.GET("/cards", handlers.AdminCard.List)
 		admin.POST("/cards", handlers.AdminCard.Create)
 		admin.PUT("/cards/:id", handlers.AdminCard.Update)
+		admin.DELETE("/cards/:id", handlers.AdminCard.Delete)
 		admin.POST("/cards/:id/resolve", handlers.AdminCard.Resolve)
 
 		// Baskets
 		admin.GET("/baskets", handlers.AdminBasket.List)
 		admin.POST("/baskets", handlers.AdminBasket.Create)
 		admin.PUT("/baskets/:id", handlers.AdminBasket.Update)
+		admin.DELETE("/baskets/:id", handlers.AdminBasket.Delete)
 		admin.POST("/baskets/:id/publish", handlers.AdminBasket.Publish)
 
 		// Users
@@ -227,6 +231,20 @@ func main() {
 		admin.GET("/prize-pools", handlers.AdminDashboard.AdminListPrizePools)
 		admin.GET("/prize-pools/history", handlers.AdminDashboard.AdminGetPrizePoolHistory)
 		admin.POST("/prize-pools", handlers.AdminDashboard.AdminCreatePrizePool)
+		admin.PUT("/prize-pools/:id", handlers.AdminDashboard.AdminUpdatePrizePool)
+		admin.DELETE("/prize-pools/:id", handlers.AdminDashboard.AdminCancelPrizePool)
+
+		// Sports automation
+		admin.GET("/sports", handlers.AdminAutomation.ListSports)
+		admin.PUT("/sports/:key", handlers.AdminAutomation.ToggleSport)
+		admin.GET("/automation/status", handlers.AdminAutomation.GetAutomationStatus)
+		admin.POST("/automation/trigger", handlers.AdminAutomation.TriggerJob)
+		admin.GET("/automation/logs", handlers.AdminAutomation.GetAutomationLogs)
+
+		// Settings
+		admin.GET("/settings", handlers.AdminSettings.List)
+		admin.PUT("/settings/:key", handlers.AdminSettings.Update)
+		admin.DELETE("/settings/:key", handlers.AdminSettings.Delete)
 	}
 
 	// Start cron jobs
@@ -302,6 +320,9 @@ type repositories struct {
 	Abuse               *postgres.AbuseRepo
 	NotificationHistory *postgres.NotificationHistoryRepo
 	PrizePool           *postgres.PrizePoolRepo
+	Sport               *postgres.SportRepo
+	AutomationLog       *postgres.AutomationLogRepo
+	Setting             *postgres.SettingRepo
 	Cache               *redis.CacheRepo
 	LBCache             *redis.LeaderboardCache
 }
@@ -326,26 +347,32 @@ func initRepositories(db *postgres.DB, rdb *redis.Client) *repositories {
 		Abuse:               postgres.NewAbuseRepo(db),
 		NotificationHistory: postgres.NewNotificationHistoryRepo(db),
 		PrizePool:           postgres.NewPrizePoolRepo(db),
+		Sport:               postgres.NewSportRepo(db),
+		AutomationLog:       postgres.NewAutomationLogRepo(db),
+		Setting:             postgres.NewSettingRepo(db),
 		Cache:               redis.NewCacheRepo(rdb),
 		LBCache:             redis.NewLeaderboardCache(rdb),
 	}
 }
 
 type services struct {
-	Auth         *service.AuthService
-	Game         *service.GameService
-	Card         *service.CardService
-	Shuffle      *service.ShuffleService
-	Leaderboard  *service.LeaderboardService
-	Streak       *service.StreakService
-	Reward       *service.RewardService
-	Notification *service.NotificationService
-	Cron         *service.CronService
-	Achievement  *service.AchievementService
-	Referral     *service.ReferralService
-	MiniLeague   *service.MiniLeagueService
-	Audit        *service.AuditService
-	Abuse        *service.AbuseService
+	Auth           *service.AuthService
+	Game           *service.GameService
+	Card           *service.CardService
+	Shuffle        *service.ShuffleService
+	Leaderboard    *service.LeaderboardService
+	Streak         *service.StreakService
+	Reward         *service.RewardService
+	Notification   *service.NotificationService
+	Cron           *service.CronService
+	Achievement    *service.AchievementService
+	Referral       *service.ReferralService
+	MiniLeague     *service.MiniLeagueService
+	Audit          *service.AuditService
+	Abuse          *service.AbuseService
+	SportsData     *service.SportsDataService
+	AutoResolve    *service.AutoResolveService
+	AI             *service.AIService
 }
 
 func initServices(cfg *config.Config, repos *repositories, wsHub *ws.Hub) *services {
@@ -392,10 +419,50 @@ func initServices(cfg *config.Config, repos *repositories, wsHub *ws.Hub) *servi
 	auditSvc := service.NewAuditService(repos.Audit)
 	abuseSvc := service.NewAbuseService(repos.Abuse, repos.User, repos.Reward)
 
+	cardSvc := service.NewCardService(repos.Card, repos.Answer, leaderboardSvc, wsHub)
+
+	// Sports automation services — load API keys from DB first, fallback to env vars
+	var aiSvc *service.AIService
+	var sportsDataSvc *service.SportsDataService
+	var autoResolveSvc *service.AutoResolveService
+
+	oddsAPIKey := cfg.OddsAPIKey
+	anthropicAPIKey := cfg.AnthropicAPIKey
+	autoSportsEnabled := cfg.AutoSportsEnabled
+
+	// Try loading from DB settings
+	if dbKey, err := repos.Setting.Get(context.Background(), "ODDS_API_KEY"); err == nil && dbKey != "" {
+		oddsAPIKey = dbKey
+	}
+	if dbKey, err := repos.Setting.Get(context.Background(), "ANTHROPIC_API_KEY"); err == nil && dbKey != "" {
+		anthropicAPIKey = dbKey
+	}
+	if dbVal, err := repos.Setting.Get(context.Background(), "AUTO_SPORTS_ENABLED"); err == nil && dbVal != "" {
+		autoSportsEnabled = dbVal == "true"
+	}
+
+	if oddsAPIKey != "" && anthropicAPIKey != "" {
+		oddsClient := oddsapi.NewClient(oddsAPIKey)
+		aiSvc = service.NewAIService(anthropicAPIKey)
+
+		sportsDataSvc = service.NewSportsDataService(
+			oddsClient, repos.Match, repos.Event, repos.Card, repos.Basket,
+			repos.Sport, aiSvc, repos.AutomationLog,
+		)
+		autoResolveSvc = service.NewAutoResolveService(
+			repos.Match, repos.Card, cardSvc, oddsClient, aiSvc, repos.AutomationLog,
+		)
+
+		cronSvc.SetAutomationServices(sportsDataSvc, autoResolveSvc, autoSportsEnabled)
+		log.Info().Msg("sports automation services initialized")
+	} else {
+		log.Info().Msg("sports automation disabled (ODDS_API_KEY or ANTHROPIC_API_KEY not set)")
+	}
+
 	return &services{
 		Auth:         service.NewAuthService(repos.User, referralSvc, cfg.JWTSecret),
 		Game:         service.NewGameService(repos.Session, repos.Answer, repos.Basket, repos.Card, repos.User, repos.Cache, shuffleSvc, streakSvc, achievementSvc),
-		Card:         service.NewCardService(repos.Card, repos.Answer, leaderboardSvc, wsHub),
+		Card:         cardSvc,
 		Shuffle:      shuffleSvc,
 		Leaderboard:  leaderboardSvc,
 		Streak:       streakSvc,
@@ -407,6 +474,9 @@ func initServices(cfg *config.Config, repos *repositories, wsHub *ws.Hub) *servi
 		MiniLeague:   miniLeagueSvc,
 		Audit:        auditSvc,
 		Abuse:        abuseSvc,
+		SportsData:   sportsDataSvc,
+		AutoResolve:  autoResolveSvc,
+		AI:           aiSvc,
 	}
 }
 
@@ -423,7 +493,7 @@ type allHandlers struct {
 	Referral          *handler.ReferralHandler
 	League            *handler.LeagueHandler
 	WebSocket         *wsHandler.WebSocketHandler
-	AdminEvent        *adminHandler.EventHandler
+	AdminEvent *adminHandler.EventHandler
 	AdminMatch        *adminHandler.MatchHandler
 	AdminCard         *adminHandler.CardHandler
 	AdminBasket       *adminHandler.BasketHandler
@@ -432,6 +502,8 @@ type allHandlers struct {
 	AdminNotification *adminHandler.NotificationHandler
 	AdminAudit        *adminHandler.AuditHandler
 	AdminDashboard    *adminHandler.DashboardHandler
+	AdminAutomation   *adminHandler.AutomationHandler
+	AdminSettings     *adminHandler.SettingsHandler
 	Exchange          *handler.ExchangeHandler
 }
 
@@ -458,6 +530,8 @@ func initHandlers(cfg *config.Config, svc *services, repos *repositories, wsHub 
 		AdminNotification: adminHandler.NewNotificationHandler(svc.Notification, repos.NotificationHistory),
 		AdminAudit:        adminHandler.NewAuditHandler(svc.Audit, svc.Abuse),
 		AdminDashboard:    adminHandler.NewDashboardHandler(svc.Leaderboard, svc.Audit, repos.User, repos.Session, repos.Answer, repos.Abuse, repos.Referral, repos.Reward, repos.NotificationHistory, repos.PrizePool),
+		AdminAutomation:   adminHandler.NewAutomationHandler(repos.Sport, repos.AutomationLog, svc.SportsData, svc.AutoResolve),
+		AdminSettings:     adminHandler.NewSettingsHandler(repos.Setting),
 		Exchange:          handler.NewExchangeHandler(svc.Reward, repos.User),
 	}
 }

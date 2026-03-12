@@ -24,6 +24,9 @@ type Match struct {
 	HomeScore   *int            `json:"home_score,omitempty"`
 	AwayScore   *int            `json:"away_score,omitempty"`
 	ResultData  json.RawMessage `json:"result_data,omitempty"`
+	ExternalID  string          `json:"external_id,omitempty"`
+	SportKey    string          `json:"sport_key,omitempty"`
+	Source      string          `json:"source"`
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 }

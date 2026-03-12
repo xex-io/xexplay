@@ -18,7 +18,7 @@
 5. [Scoring & Ranking System](#5-scoring--ranking-system)
 6. [Engagement & Growth Features](#6-engagement--growth-features)
 7. [XEX Exchange Integration](#7-xex-exchange-integration)
-8. [Admin Capabilities](#8-admin-capabilities)
+8. [Admin Capabilities](#8-admin-capabilities) (includes 8.10 Sports Automation, 8.11 Settings)
 9. [Monetization Strategy](#9-monetization-strategy)
 10. [UI/UX Design Language](#10-uiux-design-language)
 
@@ -73,17 +73,19 @@ XEX Play sits at the intersection of sports prediction and strategic card games.
 - Focuses on **engagement over gambling** — the goal is fun and competition, not wagering
 - Acts as a **gateway to XEX Exchange** — rewards are exchange-based, not cash payouts
 
-### Supported Events (Multi-Event Architecture)
+### Supported Events (Multi-Sport Architecture)
 
-The platform is designed to support multiple concurrent and sequential events:
+The platform supports multiple concurrent sports and leagues. Matches can be created manually or fetched automatically from The Odds API:
 
-- FIFA World Cup
-- UEFA Champions League
-- UEFA Euro
-- Copa America
-- Domestic leagues (Premier League, La Liga, Serie A, Bundesliga, etc.)
-- AFC Asian Cup
-- Any other sports tournament the admin configures
+- **Soccer:** Premier League, Champions League, La Liga, Bundesliga, Serie A, World Cup, Euro, Copa America, AFC Asian Cup
+- **Basketball:** NBA, EuroLeague
+- **American Football:** NFL
+- **Baseball:** MLB
+- **Ice Hockey:** NHL
+- **Tennis:** ATP
+- **MMA:** UFC/MMA
+- **Cricket:** IPL
+- Any other sport/tournament the admin configures or that The Odds API supports
 
 ### Supported Languages
 
@@ -100,7 +102,7 @@ The entire experience — app UI, card questions, push notifications — is full
 
 - The app detects the device language and defaults to the closest supported locale, falling back to English.
 - Users can override their language preference in-app settings.
-- **Card questions are translated by the admin** — each card has a question text per supported language.
+- **Card questions are translated by the admin or AI** — each card has a question text per supported language. AI-generated cards include automatic translations in EN, FA, and AR.
 - RTL (right-to-left) layout is fully supported for Persian and Arabic.
 
 ---
@@ -592,6 +594,24 @@ For major events (World Cup, Champions League), XEX Exchange funds token prize p
 - Send custom push notifications to all users or segments.
 - Configure automated notification triggers and timing.
 - View notification delivery and open rates.
+
+### 8.10 Sports Data Automation
+
+XEX Play includes an AI-powered automation system that can run alongside manual content creation:
+
+- **Sports Manager** — Toggle which sports/leagues are active for automation (14 sports across Soccer, Basketball, NFL, MLB, NHL, Tennis, MMA, Cricket).
+- **Auto Match Fetching** — Upcoming matches are fetched from The Odds API every 6 hours with odds data, deduplicated by external ID.
+- **AI Card Generation** — Claude Haiku 4.5 generates yes/no prediction questions with multi-language translations (EN, FA, AR) and proper tier distribution (Gold/Silver/White).
+- **Auto-Resolution** — Cards are automatically resolved when matches complete, using AI to evaluate complex questions against actual results.
+- **Automation Dashboard** — View job status, last run times, trigger jobs manually, and browse activity logs.
+- **Source Badges** — Matches show "Auto"/"Manual", cards show "AI"/"Manual", events show "Auto"/"Manual" badges across the admin panel.
+
+### 8.11 Settings Management
+
+- Manage API keys and configuration directly from the admin UI (no server restart needed).
+- Secret values (API keys) are masked in the interface with show/hide toggle.
+- Inline editing with save/cancel/clear actions.
+- Database-stored settings with environment variable fallback on startup.
 
 ---
 

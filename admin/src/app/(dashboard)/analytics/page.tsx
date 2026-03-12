@@ -33,7 +33,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
           {label}
         </p>
-        <p className="text-2xl font-bold text-foreground">
+        <p className="text-2xl font-bold text-foreground" suppressHydrationWarning>
           {typeof value === "number" ? value.toLocaleString() : value}
         </p>
       </CardContent>
@@ -46,18 +46,19 @@ export default function AnalyticsPage() {
     queryKey: ["admin-analytics-overview"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/analytics/overview");
-      return res.data?.data ?? res.data ?? defaultOverview;
+      const d = res.data?.data ?? res.data;
+      return { ...defaultOverview, ...(d && typeof d === "object" && !Array.isArray(d) ? d : {}) };
     },
   });
 
   const completionRate =
-    overview.total_sessions > 0
-      ? (overview.completed_sessions / overview.total_sessions) * 100
+    (overview.total_sessions ?? 0) > 0
+      ? ((overview.completed_sessions ?? 0) / overview.total_sessions) * 100
       : 0;
 
-  const totalAnswers = overview.correct_answers + overview.incorrect_answers;
-  const correctPct = totalAnswers > 0 ? ((overview.correct_answers / totalAnswers) * 100).toFixed(1) : "0";
-  const incorrectPct = totalAnswers > 0 ? ((overview.incorrect_answers / totalAnswers) * 100).toFixed(1) : "0";
+  const totalAnswers = (overview.correct_answers ?? 0) + (overview.incorrect_answers ?? 0);
+  const correctPct = totalAnswers > 0 ? (((overview.correct_answers ?? 0) / totalAnswers) * 100).toFixed(1) : "0";
+  const incorrectPct = totalAnswers > 0 ? (((overview.incorrect_answers ?? 0) / totalAnswers) * 100).toFixed(1) : "0";
 
   return (
     <div>
@@ -69,17 +70,17 @@ export default function AnalyticsPage() {
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Total Users" value={overview.total_users} />
-            <StatCard label="DAU" value={overview.dau} />
-            <StatCard label="WAU" value={overview.wau} />
-            <StatCard label="MAU" value={overview.mau} />
+            <StatCard label="Total Users" value={overview.total_users ?? 0} />
+            <StatCard label="DAU" value={overview.dau ?? 0} />
+            <StatCard label="WAU" value={overview.wau ?? 0} />
+            <StatCard label="MAU" value={overview.mau ?? 0} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Total Sessions" value={overview.total_sessions} />
-            <StatCard label="Completed Sessions" value={overview.completed_sessions} />
-            <StatCard label="Correct Answers" value={overview.correct_answers} />
-            <StatCard label="Incorrect Answers" value={overview.incorrect_answers} />
+            <StatCard label="Total Sessions" value={overview.total_sessions ?? 0} />
+            <StatCard label="Completed Sessions" value={overview.completed_sessions ?? 0} />
+            <StatCard label="Correct Answers" value={overview.correct_answers ?? 0} />
+            <StatCard label="Incorrect Answers" value={overview.incorrect_answers ?? 0} />
           </div>
 
           {/* Charts Placeholder Row */}
@@ -128,7 +129,7 @@ export default function AnalyticsPage() {
                     {completionRate.toFixed(1)}%
                   </span>
                   <span className="text-sm text-muted-foreground mb-1">
-                    {overview.completed_sessions.toLocaleString()} of {overview.total_sessions.toLocaleString()} sessions completed
+                    {(overview.completed_sessions ?? 0).toLocaleString()} of {(overview.total_sessions ?? 0).toLocaleString()} sessions completed
                   </span>
                 </div>
                 <div className="mt-4 w-full bg-muted rounded-full h-3">
@@ -157,13 +158,13 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-green-400">Correct</span>
                     <span className="text-sm font-mono text-green-400">
-                      {overview.correct_answers.toLocaleString()} ({correctPct}%)
+                      {(overview.correct_answers ?? 0).toLocaleString()} ({correctPct}%)
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-red-400">Incorrect</span>
                     <span className="text-sm font-mono text-red-400">
-                      {overview.incorrect_answers.toLocaleString()} ({incorrectPct}%)
+                      {(overview.incorrect_answers ?? 0).toLocaleString()} ({incorrectPct}%)
                     </span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-3 flex overflow-hidden">

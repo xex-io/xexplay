@@ -20,6 +20,7 @@
 14. [Security Considerations](#14-security-considerations)
 15. [Deployment Strategy](#15-deployment-strategy)
 16. [Development Phases / Roadmap](#16-development-phases--roadmap)
+17. [Sports Data Automation](#17-sports-data-automation)
 
 ---
 
@@ -140,6 +141,8 @@ XEX Play's **only connection** to the exchange is the shared JWT signing secret,
 | **Containerization** | Docker + Docker Compose        | Consistent environments, easy deployment                                      |
 | **CI/CD**            | GitHub Actions                 | Automated testing, building, deployment                                       |
 | **Reverse Proxy**    | Nginx or Traefik               | Load balancing, TLS termination, routing                                      |
+| **Sports Data**      | The Odds API                   | Real-time match data, odds, and scores for 40+ sports ($79/month)             |
+| **AI/LLM**           | Claude Haiku 4.5 (Anthropic)   | Auto-generates prediction card questions and resolves cards (~$10/month)       |
 
 ---
 
@@ -737,6 +740,22 @@ Language Header:  Accept-Language: fa  (optional, falls back to user preference,
 | POST   | `/admin/rewards/distribute`  | Trigger reward distribution       |
 | POST   | `/admin/rewards/grant`       | Manually grant tokens to a user   |
 | POST   | `/admin/notifications/send`  | Send custom push notification     |
+| DELETE | `/admin/events/:id`          | Soft-delete event                 |
+| DELETE | `/admin/matches/:id`         | Delete match (no cards guard)     |
+| DELETE | `/admin/cards/:id`           | Delete card (unresolved guard)    |
+| DELETE | `/admin/baskets/:id`         | Delete basket (unpublished guard) |
+| GET    | `/admin/prize-pools`         | List prize pools                  |
+| POST   | `/admin/prize-pools`         | Create prize pool                 |
+| PUT    | `/admin/prize-pools/:id`     | Update prize pool                 |
+| DELETE | `/admin/prize-pools/:id`     | Cancel prize pool                 |
+| GET    | `/admin/sports`              | List all sports (automation)      |
+| PUT    | `/admin/sports/:key`         | Toggle sport active/inactive      |
+| GET    | `/admin/automation/status`   | Automation job status overview    |
+| POST   | `/admin/automation/trigger`  | Manually trigger automation job   |
+| GET    | `/admin/automation/logs`     | Recent automation activity logs   |
+| GET    | `/admin/settings`            | List all settings (masked secrets)|
+| PUT    | `/admin/settings/:key`       | Update a setting value            |
+| DELETE | `/admin/settings/:key`       | Clear a setting value             |
 
 ### 5.3 WebSocket Endpoints
 
@@ -1010,7 +1029,10 @@ xexplay-api/
 │   │   ├── achievement.go
 │   │   ├── referral.go
 │   │   ├── reward.go
-│   │   └── mini_league.go
+│   │   ├── mini_league.go
+│   │   ├── sport.go                # Sports for automation
+│   │   ├── setting.go              # Admin-configurable settings
+│   │   └── automation_log.go       # Automation job execution logs
 │   ├── repository/                   # Data access interfaces + implementations
 │   │   ├── interfaces.go            # Repository interfaces
 │   │   ├── postgres/
@@ -1026,7 +1048,10 @@ xexplay-api/
 │   │   │   ├── achievement_repo.go
 │   │   │   ├── referral_repo.go
 │   │   │   ├── reward_repo.go
-│   │   │   └── mini_league_repo.go
+│   │   │   ├── mini_league_repo.go
+│   │   │   ├── sport_repo.go
+│   │   │   ├── setting_repo.go
+│   │   │   └── automation_log_repo.go
 │   │   └── redis/
 │   │       ├── cache_repo.go
 │   │       ├── leaderboard_cache.go
@@ -1041,7 +1066,12 @@ xexplay-api/
 │   │   ├── referral_service.go
 │   │   ├── notification_service.go
 │   │   ├── reward_service.go        # Token reward distribution & claiming
-│   │   └── shuffle_service.go       # Shuffle Algorithm
+│   │   ├── shuffle_service.go       # Shuffle Algorithm
+│   │   ├── cron_service.go          # Scheduled background jobs
+│   │   ├── ai_service.go            # Claude Haiku integration for card generation
+│   │   ├── ai_prompts.go            # Prompt templates for AI
+│   │   ├── auto_resolve_service.go  # Auto-resolution of cards from match results
+│   │   └── sports_data_service.go   # Odds API data ingestion & card generation
 │   ├── handler/                      # HTTP handlers (controllers)
 │   │   ├── auth_handler.go
 │   │   ├── user_handler.go
@@ -1057,7 +1087,10 @@ xexplay-api/
 │   │   │   ├── user_handler.go
 │   │   │   ├── analytics_handler.go
 │   │   │   ├── reward_handler.go
-│   │   │   └── notification_handler.go
+│   │   │   ├── notification_handler.go
+│   │   │   ├── automation_handler.go   # Sports automation management
+│   │   │   ├── settings_handler.go     # Admin settings management
+│   │   │   └── dashboard_handler.go    # Analytics, prize pools, etc.
 │   │   └── ws/
 │   │       └── websocket_handler.go
 │   ├── middleware/
@@ -1068,6 +1101,10 @@ xexplay-api/
 │   │   ├── cors.go
 │   │   ├── logger.go
 │   │   └── recovery.go
+│   ├── external/                    # External API clients
+│   │   └── oddsapi/
+│   │       ├── client.go            # The Odds API HTTP client
+│   │       └── types.go             # API response types
 │   └── pkg/
 │       ├── jwt/
 │       │   └── jwt.go
@@ -1140,32 +1177,38 @@ func (s *GameService) ResolveCard(ctx context.Context, cardID uuid.UUID, correct
 
 ```
 /login                      → Admin login (Exchange JWT, admin role required)
-/dashboard                  → Analytics overview (DAU, sessions, conversions)
-/events                     → Event CRUD list
-/events/[id]                → Event detail & matches
-/matches                    → Match list (filter by event, date, status)
-/matches/[id]               → Match detail, enter results
-/cards                      → Card list (filter by date, tier, status)
-/cards/new                  → Create card form
-/cards/[id]                 → Edit card, resolve card
-/baskets                    → Daily basket list
-/baskets/[date]             → Basket builder (add/remove/reorder cards)
-/users                      → User list (search, filter, paginate)
-/users/[id]                 → User detail (sessions, answers, stats)
+/                           → Analytics overview (DAU, sessions, conversions)
+/events                     → Event CRUD with edit/delete (soft-delete)
+/matches                    → Match CRUD with score update and delete
+/cards                      → Card CRUD with resolve, edit (unresolved), delete
+/baskets                    → Basket CRUD with publish, edit (unpublished), delete
+/users                      → User list with admin/regular separation, role & active toggles
 /leaderboards               → Leaderboard viewer & export
-/rewards                    → Reward config, distribution history, manual grants
-/translations               → Translation status, missing translations per language
+/rewards                    → Reward config CRUD with activate/deactivate
+/prize-pools                → Prize pool CRUD with cancel
 /notifications              → Send push notifications
-/settings                   → App config, supported languages, tier scoring reference
+/analytics                  → Analytics overview dashboard
+/exchange-metrics           → Exchange conversion metrics
+/referrals                  → Referral stats and top referrers
+/translations               → 8-language inline translation editor with completion stats
+/moderation                 → User moderation panel
+/abuse                      → Abuse flag management
+/audit                      → Audit log viewer
+/automation                 → Sports automation dashboard (sports manager, job triggers, logs)
+/settings                   → API keys and configuration management (DB-stored, masked secrets)
 ```
 
 ### 8.2 Key Features
 
-- **Basket Builder:** Drag-and-drop interface for composing daily baskets of exactly 15 cards (3 Gold + 5 Silver + 7 White). Validates tier counts before publishing.
-- **Card Resolution Panel:** After a match completes, admin sets the correct answer. System automatically resolves all user answers and updates leaderboards.
-- **Live Dashboard:** Real-time metrics showing active sessions, answers being submitted, leaderboard changes.
-- **User Moderation:** Ban/suspend users, view detailed activity logs.
-- **Notification Composer:** Send targeted push notifications to all users, specific segments, or individuals.
+- **Full CRUD:** All content pages (Events, Matches, Cards, Baskets, Rewards, Prize Pools) have Create, Edit, and Delete with appropriate guards (e.g., can't delete published baskets, can't edit resolved cards).
+- **Actions Menu:** Reusable three-dot dropdown menu component with edit/delete actions per entity row.
+- **Basket Builder:** Compose daily baskets of exactly 15 cards (3 Gold + 5 Silver + 7 White). Validates tier counts before publishing.
+- **Card Resolution:** After a match completes, admin sets the correct answer. System automatically resolves all user answers and updates leaderboards. Also supports AI-powered auto-resolution.
+- **User Management:** Separated admin/user lists, inline role and active status toggles.
+- **Translations:** 8-language inline editor (EN, FA, AR, TR, RU, ZH, ES, PT) with type filtering and completion stats.
+- **Sports Automation Dashboard:** Manage active sports, view cron job status, manually trigger automation jobs, review activity logs.
+- **Settings Panel:** DB-stored API keys and configuration, editable from admin UI with secret masking.
+- **Source Badges:** Matches, Cards, and Events show "Auto"/"AI" badges for auto-generated content.
 
 ### 8.3 Tech Details
 
@@ -1584,6 +1627,231 @@ Week:  1──2──3──4──5──6──7──8──9──10──11
                                            ├───── v1.5 ──────┤
                                                              ├──── v2.0 ────┤
 ```
+
+---
+
+## 17. Sports Data Automation
+
+XEX Play includes an AI-powered automation system that fetches real sports data, generates prediction questions using Claude AI, and auto-resolves cards based on match results. Both automated and manual modes coexist — admins can override or create content manually at any time.
+
+### 17.1 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        EXTERNAL SERVICES                                │
+│                                                                         │
+│   ┌──────────────────────┐          ┌──────────────────────┐           │
+│   │   The Odds API        │          │   Anthropic API       │           │
+│   │   (Sports Data)       │          │   (Claude Haiku 4.5)  │           │
+│   │                       │          │                       │           │
+│   │  • Upcoming matches   │          │  • Question generation │           │
+│   │  • Live/final scores  │          │  • Multi-language i18n │           │
+│   │  • H2H odds           │          │  • Auto-resolution     │           │
+│   └───────────┬───────────┘          └───────────┬───────────┘           │
+│               │                                  │                       │
+└───────────────┼──────────────────────────────────┼───────────────────────┘
+                │                                  │
+┌───────────────┼──────────────────────────────────┼───────────────────────┐
+│               │       XEX PLAY BACKEND           │                       │
+│               ▼                                  ▼                       │
+│   ┌──────────────────┐              ┌──────────────────┐                │
+│   │  Odds API Client  │              │   AI Service      │                │
+│   │  (external/oddsapi)│              │   (service/)      │                │
+│   └────────┬─────────┘              └────────┬─────────┘                │
+│            │                                  │                          │
+│            ▼                                  ▼                          │
+│   ┌─────────────────────────────────────────────────────┐               │
+│   │              AUTOMATION SERVICES                      │               │
+│   │                                                       │               │
+│   │   SportsDataService    AutoResolveService             │               │
+│   │   • FetchUpcoming      • ProcessCompleted             │               │
+│   │   • GenerateCards      • AI-based resolution          │               │
+│   │   • AutoPublish        • Score comparison             │               │
+│   │   • SyncSports                                        │               │
+│   └──────────────────────────┬────────────────────────────┘               │
+│                              │                                           │
+│                              ▼                                           │
+│   ┌─────────────────────────────────────────────────────┐               │
+│   │              CRON SCHEDULER                           │               │
+│   │                                                       │               │
+│   │   Every 6h:  Fetch upcoming matches                   │               │
+│   │   Daily 2AM: Generate AI questions                    │               │
+│   │   Daily 6AM: Auto-publish baskets                     │               │
+│   │   Every 15m: Update live scores                       │               │
+│   │   Every 15m: Auto-resolve completed cards             │               │
+│   │   Weekly:    Sync sports list                         │               │
+│   └───────────────────────────────────────────────────────┘               │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 17.2 The Odds API Integration
+
+**Client:** `backend/internal/external/oddsapi/client.go`
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GetSports()` | `GET /v4/sports` | List all available sports |
+| `GetUpcomingMatches()` | `GET /v4/sports/{sport}/odds` | Upcoming matches with H2H odds |
+| `GetScores()` | `GET /v4/sports/{sport}/scores` | Live and completed match scores |
+
+**Rate limiting:** The client tracks remaining API requests via the `x-requests-remaining` response header. Warnings are logged when the remaining count drops below 100.
+
+**Deduplication:** Matches fetched from The Odds API are stored with an `external_id` field (unique constraint). The `UpsertFromExternal` repository method uses PostgreSQL `ON CONFLICT` to update existing matches rather than creating duplicates.
+
+**Cost:** ~$79/month for The Odds API subscription.
+
+### 17.3 AI Question Generation (Claude Haiku 4.5)
+
+**Service:** `backend/internal/service/ai_service.go`
+
+The AI service calls the Anthropic API (`POST https://api.anthropic.com/v1/messages`) with Claude Haiku 4.5 to generate prediction questions.
+
+#### Card Generation Flow
+
+1. Receive match details (teams, sport, league, kickoff time, H2H odds)
+2. Build a structured prompt requesting yes/no prediction questions
+3. Specify tier distribution (Gold/Silver/White) and scoring rules
+4. Request translations in English, Persian, and Arabic
+5. Parse JSON response into card domain objects
+
+#### Generated Card Structure
+
+Each AI-generated card includes:
+- Question text in 3 languages (EN, FA, AR)
+- Card tier (Gold, Silver, White)
+- Which answer (Yes/No) is the high-reward answer
+- Resolution criteria (how to determine the correct answer after the match)
+
+#### Auto-Resolution
+
+When a match completes, the AI service can determine the correct answer for complex questions by sending the question, resolution criteria, and actual match result to Claude.
+
+**Cost:** ~$5-10/month for Claude Haiku calls (~500 calls/day).
+
+### 17.4 Source Tracking
+
+All automated content is tagged with a `source` field to distinguish it from manual content:
+
+| Entity | Source Values | Meaning |
+|--------|--------------|---------|
+| Match | `manual` / `auto` | Created by admin vs. fetched from Odds API |
+| Card | `manual` / `ai` | Created by admin vs. generated by Claude AI |
+| Event | `manual` / `auto` | Created by admin vs. auto-created for a league |
+
+The admin UI displays badges (Auto/AI/Manual) on matches, cards, and events. Admins can edit or override any auto-generated content.
+
+### 17.5 Cron Job Schedule
+
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| Fetch Upcoming Matches | Every 6 hours | Fetches matches for the next 3 days from all active sports |
+| Generate Daily Cards | Daily at 02:00 UTC | Generates AI prediction questions for tomorrow's matches |
+| Auto-Publish Baskets | Daily at 06:00 UTC | Publishes unpublished auto-generated baskets for today |
+| Update Live Scores | Every 15 minutes | Fetches scores for in-progress matches |
+| Auto-Resolve Cards | Every 15 minutes | Resolves cards for completed matches using AI + scores |
+| Sync Sports | Weekly (Sunday) | Refreshes the available sports list from The Odds API |
+
+All jobs can be manually triggered from the admin automation dashboard. Jobs only run when `AUTO_SPORTS_ENABLED` is set to `true` in the settings table.
+
+### 17.6 Database Schema Additions
+
+```sql
+-- Sports reference table (14 seeded sports across 8 groups)
+CREATE TABLE sports (
+    key         VARCHAR(64) PRIMARY KEY,
+    group_name  VARCHAR(64) NOT NULL,
+    title       VARCHAR(128) NOT NULL,
+    is_active   BOOLEAN DEFAULT true
+);
+
+-- Automation activity log
+CREATE TABLE automation_logs (
+    id          BIGSERIAL PRIMARY KEY,
+    job_name    VARCHAR(64) NOT NULL,
+    status      VARCHAR(16) NOT NULL,       -- success / error
+    message     TEXT,
+    items_count INTEGER DEFAULT 0,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- DB-stored configuration (replaces env vars for API keys)
+CREATE TABLE settings (
+    key         VARCHAR(128) PRIMARY KEY,
+    value       TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    is_secret   BOOLEAN DEFAULT false,
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Extended columns on existing tables
+ALTER TABLE matches ADD COLUMN external_id VARCHAR(128) UNIQUE;
+ALTER TABLE matches ADD COLUMN sport_key   VARCHAR(64) REFERENCES sports(key);
+ALTER TABLE matches ADD COLUMN source      VARCHAR(16) DEFAULT 'manual';
+
+ALTER TABLE cards ADD COLUMN source             VARCHAR(16) DEFAULT 'manual';
+ALTER TABLE cards ADD COLUMN ai_prompt_data     JSONB;
+ALTER TABLE cards ADD COLUMN resolution_criteria TEXT DEFAULT '';
+
+ALTER TABLE events ADD COLUMN source    VARCHAR(16) DEFAULT 'manual';
+ALTER TABLE events ADD COLUMN sport_key VARCHAR(64) REFERENCES sports(key);
+```
+
+### 17.7 Supported Sports
+
+The system ships with 14 pre-seeded sports across 8 groups. Admins can toggle sports on/off from the automation dashboard.
+
+| Group | Sports |
+|-------|--------|
+| Soccer | EPL, Champions League, La Liga, Bundesliga, Serie A |
+| Basketball | NBA, EuroLeague |
+| American Football | NFL |
+| Baseball | MLB |
+| Ice Hockey | NHL |
+| Tennis | ATP |
+| MMA | UFC/MMA |
+| Cricket | IPL |
+
+### 17.8 Settings Management
+
+API keys and automation configuration are stored in the `settings` database table rather than environment variables. This allows admins to update keys from the admin UI without server restarts.
+
+- **Secret masking:** Secret settings (API keys) are masked in API responses (e.g., `sk-ant-...****`)
+- **Env fallback:** On startup, the backend checks DB settings first, then falls back to environment variables
+- **Admin UI:** The Settings page provides inline editing with password-masked inputs for secrets
+
+### 17.9 Admin Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/sports` | List all sports with active status |
+| `PUT` | `/admin/sports/:key` | Toggle sport active/inactive |
+| `GET` | `/admin/automation/status` | Last run times and stats for each job |
+| `POST` | `/admin/automation/trigger` | Manually trigger a specific cron job |
+| `GET` | `/admin/automation/logs` | Recent automation activity log |
+| `GET` | `/admin/settings` | List all settings (secrets masked) |
+| `PUT` | `/admin/settings/:key` | Update a setting value |
+| `DELETE` | `/admin/settings/:key` | Clear a setting value |
+
+### 17.10 New Backend Files
+
+| File | Purpose |
+|------|---------|
+| `internal/domain/sport.go` | Sport domain model |
+| `internal/domain/automation_log.go` | Automation log model |
+| `internal/domain/setting.go` | Setting model with secret masking |
+| `internal/external/oddsapi/client.go` | The Odds API HTTP client |
+| `internal/external/oddsapi/types.go` | API response types |
+| `internal/service/ai_service.go` | Claude Haiku integration |
+| `internal/service/ai_prompts.go` | Prompt templates |
+| `internal/service/auto_resolve_service.go` | Auto-resolution logic |
+| `internal/service/sports_data_service.go` | Match fetching, card generation, publishing |
+| `internal/repository/postgres/sport_repo.go` | Sports CRUD |
+| `internal/repository/postgres/automation_log_repo.go` | Log CRUD |
+| `internal/repository/postgres/setting_repo.go` | Settings CRUD |
+| `internal/handler/admin/automation_handler.go` | Automation admin endpoints |
+| `internal/handler/admin/settings_handler.go` | Settings admin endpoints |
+| `migrations/023_add_sports_automation.{up,down}.sql` | Automation schema migration |
+| `migrations/024_create_settings.{up,down}.sql` | Settings table migration |
 
 ---
 

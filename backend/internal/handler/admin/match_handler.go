@@ -155,3 +155,31 @@ func (h *MatchHandler) Update(c *gin.Context) {
 
 	response.OK(c, match)
 }
+
+// Delete handles DELETE /admin/matches/:id
+func (h *MatchHandler) Delete(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		response.BadRequest(c, "invalid match id")
+		return
+	}
+
+	// Guard: cannot delete match that has cards
+	count, err := h.matchRepo.CountCardsByMatchID(c.Request.Context(), id)
+	if err != nil {
+		response.InternalError(c, "failed to check match cards")
+		return
+	}
+	if count > 0 {
+		response.BadRequest(c, "cannot delete match with existing cards")
+		return
+	}
+
+	if err := h.matchRepo.Delete(c.Request.Context(), id); err != nil {
+		response.InternalError(c, "failed to delete match: "+err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "match deleted"})
+}

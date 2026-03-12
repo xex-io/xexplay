@@ -3,6 +3,7 @@
 import { useState, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import { ChevronRight, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export default function AuditPage() {
       if (dateFrom) params.date_from = dateFrom;
       if (dateTo) params.date_to = dateTo;
       const res = await apiClient.get("/admin/audit-logs", { params });
-      return res.data?.data ?? res.data ?? [];
+      return asArray<AuditLog>(res);
     },
   });
 

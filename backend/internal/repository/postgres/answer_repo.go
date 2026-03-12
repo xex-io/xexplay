@@ -159,16 +159,12 @@ func (r *AnswerRepo) BulkResolve(ctx context.Context, cardID uuid.UUID, correctA
 	cardQuery := `
 		SELECT id, match_id, question_text, tier, high_answer_is_yes,
 		       correct_answer, is_resolved, available_date, expires_at,
+		       source, ai_prompt_data, resolution_criteria,
 		       created_at, updated_at
 		FROM cards
 		WHERE id = $1`
 
-	var card domain.Card
-	err = tx.QueryRow(ctx, cardQuery, cardID).Scan(
-		&card.ID, &card.MatchID, &card.QuestionText, &card.Tier, &card.HighAnswerIsYes,
-		&card.CorrectAnswer, &card.IsResolved, &card.AvailableDate, &card.ExpiresAt,
-		&card.CreatedAt, &card.UpdatedAt,
-	)
+	card, err := scanCard(tx.QueryRow(ctx, cardQuery, cardID).Scan)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return fmt.Errorf("bulk resolve: card not found")

@@ -19,6 +19,9 @@ type CronService struct {
 	streakRepo      *postgres.StreakRepo
 	notificationSvc *NotificationService
 	lbCache         *redis.LeaderboardCache
+	sportsDataSvc   *SportsDataService
+	autoResolveSvc  *AutoResolveService
+	autoEnabled     bool
 }
 
 func NewCronService(
@@ -39,6 +42,13 @@ func NewCronService(
 	}
 }
 
+// SetAutomationServices configures the automation services for sports data cron jobs.
+func (s *CronService) SetAutomationServices(sportsDataSvc *SportsDataService, autoResolveSvc *AutoResolveService, enabled bool) {
+	s.sportsDataSvc = sportsDataSvc
+	s.autoResolveSvc = autoResolveSvc
+	s.autoEnabled = enabled
+}
+
 // StartCronJobs launches all background cron jobs in goroutines.
 // The provided context should be cancelled to stop all jobs gracefully.
 func (s *CronService) StartCronJobs(ctx context.Context) {
@@ -48,6 +58,17 @@ func (s *CronService) StartCronJobs(ctx context.Context) {
 	go s.runAtWeekday(ctx, time.Monday, 0, 5, "weekly-rewards", s.weeklyRewardJob) // Monday 00:05 UTC
 	go s.runAtTime(ctx, 20, 0, "streak-at-risk", s.streakAtRiskJob)    // 8 PM UTC
 	go s.runAtTime(ctx, 9, 0, "basket-ready", s.basketReadyJob)        // 9 AM UTC
+
+	// Sports automation cron jobs
+	if s.autoEnabled && s.sportsDataSvc != nil && s.autoResolveSvc != nil {
+		log.Info().Msg("starting sports automation cron jobs")
+		go s.runEvery(ctx, 6*time.Hour, "fetch-matches", s.fetchMatchesJob)       // Every 6 hours
+		go s.runAtTime(ctx, 2, 0, "generate-cards", s.generateCardsJob)           // Daily at 02:00 UTC
+		go s.runAtTime(ctx, 6, 0, "auto-publish", s.autoPublishJob)               // Daily at 06:00 UTC
+		go s.runEvery(ctx, 15*time.Minute, "update-scores", s.updateScoresJob)    // Every 15 min
+		go s.runEvery(ctx, 15*time.Minute, "auto-resolve", s.autoResolveJob)      // Every 15 min
+		go s.runAtWeekday(ctx, time.Sunday, 3, 0, "sync-sports", s.syncSportsJob) // Sunday 03:00 UTC
+	}
 }
 
 // runAtTime runs a job every day at the specified hour and minute (UTC).
@@ -241,4 +262,84 @@ func (s *CronService) streakAtRiskJob(ctx context.Context) {
 func (s *CronService) basketReadyJob(ctx context.Context) {
 	log.Info().Msg("sending basket ready notification")
 	s.notificationSvc.NotifyBasketReady(ctx)
+}
+
+// runEvery runs a job every interval.
+func (s *CronService) runEvery(ctx context.Context, interval time.Duration, name string, job func(ctx context.Context)) {
+	// Run immediately on startup, then on interval
+	log.Info().Str("job", name).Dur("interval", interval).Msg("cron job starting (interval)")
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Str("job", name).Interface("panic", r).Msg("cron job panicked")
+			}
+		}()
+		jobCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+		job(jobCtx)
+	}()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info().Str("job", name).Msg("cron job stopped")
+			return
+		case <-ticker.C:
+			log.Info().Str("job", name).Msg("cron job starting")
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Error().Str("job", name).Interface("panic", r).Msg("cron job panicked")
+					}
+				}()
+				jobCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+				defer cancel()
+				job(jobCtx)
+			}()
+			log.Info().Str("job", name).Msg("cron job completed")
+		}
+	}
+}
+
+// --- Sports automation jobs ---
+
+func (s *CronService) fetchMatchesJob(ctx context.Context) {
+	if err := s.sportsDataSvc.FetchUpcomingMatches(ctx); err != nil {
+		log.Error().Err(err).Msg("fetch matches job failed")
+	}
+}
+
+func (s *CronService) generateCardsJob(ctx context.Context) {
+	if err := s.sportsDataSvc.GenerateDailyCards(ctx); err != nil {
+		log.Error().Err(err).Msg("generate cards job failed")
+	}
+}
+
+func (s *CronService) autoPublishJob(ctx context.Context) {
+	if err := s.sportsDataSvc.AutoPublishBaskets(ctx); err != nil {
+		log.Error().Err(err).Msg("auto publish job failed")
+	}
+}
+
+func (s *CronService) updateScoresJob(ctx context.Context) {
+	if err := s.autoResolveSvc.ProcessCompletedMatches(ctx); err != nil {
+		log.Error().Err(err).Msg("update scores job failed")
+	}
+}
+
+func (s *CronService) autoResolveJob(ctx context.Context) {
+	// This is the same as updateScoresJob since ProcessCompletedMatches
+	// handles both score updates and card resolution
+	if err := s.autoResolveSvc.ProcessCompletedMatches(ctx); err != nil {
+		log.Error().Err(err).Msg("auto resolve job failed")
+	}
+}
+
+func (s *CronService) syncSportsJob(ctx context.Context) {
+	if err := s.sportsDataSvc.SyncSports(ctx); err != nil {
+		log.Error().Err(err).Msg("sync sports job failed")
+	}
 }

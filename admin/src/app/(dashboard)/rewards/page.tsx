@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
+import { asArray } from "@/lib/loc-str";
 import {
   Table,
   TableHeader,
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +33,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Plus, Zap } from "lucide-react";
+import { ActionsMenu } from "@/components/actions-menu";
+import { Plus, Zap, Pencil, Power } from "lucide-react";
 
 interface RewardConfig {
   id: string;
@@ -40,6 +43,7 @@ interface RewardConfig {
   rank_to: number;
   reward_type: string;
   amount: number;
+  description?: Record<string, string>;
   is_active: boolean;
   created_at: string;
 }
@@ -60,6 +64,7 @@ export default function RewardsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("configs");
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showTriggerModal, setShowTriggerModal] = useState(false);
+  const [editConfig, setEditConfig] = useState<RewardConfig | null>(null);
 
   // Config form state
   const [configForm, setConfigForm] = useState({
@@ -68,6 +73,16 @@ export default function RewardsPage() {
     rank_to: 10,
     reward_type: "token",
     amount: 0,
+  });
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    period_type: "daily",
+    rank_from: 1,
+    rank_to: 10,
+    reward_type: "token",
+    amount: 0,
+    is_active: true,
   });
 
   // Trigger form state
@@ -80,7 +95,7 @@ export default function RewardsPage() {
     queryKey: ["admin-reward-configs"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/rewards/configs");
-      return res.data?.data ?? res.data ?? [];
+      return asArray<RewardConfig>(res);
     },
     enabled: activeTab === "configs",
   });
@@ -91,7 +106,7 @@ export default function RewardsPage() {
     queryKey: ["admin-reward-distributions"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/rewards/history");
-      return res.data?.data ?? res.data ?? [];
+      return asArray<RewardDistribution>(res);
     },
     enabled: activeTab === "distributions",
   });
@@ -107,6 +122,40 @@ export default function RewardsPage() {
     },
   });
 
+  const editConfigMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof editForm }) => {
+      return apiClient.put(`/admin/rewards/configs/${id}`, {
+        period_type: data.period_type,
+        rank_from: data.rank_from,
+        rank_to: data.rank_to,
+        reward_type: data.reward_type,
+        amount: data.amount,
+        is_active: data.is_active,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-reward-configs"] });
+      setEditConfig(null);
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async (cfg: RewardConfig) => {
+      return apiClient.put(`/admin/rewards/configs/${cfg.id}`, {
+        period_type: cfg.period_type,
+        rank_from: cfg.rank_from,
+        rank_to: cfg.rank_to,
+        reward_type: cfg.reward_type,
+        amount: cfg.amount,
+        description: cfg.description,
+        is_active: !cfg.is_active,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-reward-configs"] });
+    },
+  });
+
   const triggerDistributionMutation = useMutation({
     mutationFn: async (data: typeof triggerForm) => {
       return apiClient.post("/admin/rewards/distribute", data);
@@ -116,6 +165,18 @@ export default function RewardsPage() {
       setShowTriggerModal(false);
     },
   });
+
+  function openEditDialog(cfg: RewardConfig) {
+    setEditConfig(cfg);
+    setEditForm({
+      period_type: cfg.period_type,
+      rank_from: cfg.rank_from,
+      rank_to: cfg.rank_to,
+      reward_type: cfg.reward_type,
+      amount: cfg.amount,
+      is_active: cfg.is_active,
+    });
+  }
 
   return (
     <div>
@@ -157,18 +218,19 @@ export default function RewardsPage() {
                   <TableHead>Reward Type</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-12">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {configsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       Loading configs...
                     </TableCell>
                   </TableRow>
                 ) : configs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       No reward configs found.
                     </TableCell>
                   </TableRow>
@@ -187,6 +249,23 @@ export default function RewardsPage() {
                         ) : (
                           <Badge variant="outline">Inactive</Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <ActionsMenu
+                          items={[
+                            {
+                              label: "Edit",
+                              icon: Pencil,
+                              onClick: () => openEditDialog(cfg),
+                            },
+                            {
+                              label: cfg.is_active ? "Deactivate" : "Activate",
+                              icon: Power,
+                              onClick: () => toggleActiveMutation.mutate(cfg),
+                              disabled: toggleActiveMutation.isPending,
+                            },
+                          ]}
+                        />
                       </TableCell>
                     </TableRow>
                   ))
@@ -328,6 +407,111 @@ export default function RewardsPage() {
           </DialogFooter>
           {createConfigMutation.isError && (
             <p className="text-sm text-destructive">Failed to create config. Please try again.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Config Dialog */}
+      <Dialog open={editConfig !== null} onOpenChange={(open) => { if (!open) setEditConfig(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Reward Config</DialogTitle>
+            <DialogDescription>
+              Update the reward configuration settings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Period Type</Label>
+              <Select
+                value={editForm.period_type}
+                onValueChange={(val) => setEditForm({ ...editForm, period_type: val ?? "" })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="tournament">Tournament</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-2">
+                <Label>Rank From</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={editForm.rank_from}
+                  onChange={(e) => setEditForm({ ...editForm, rank_from: Number(e.target.value) })}
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label>Rank To</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={editForm.rank_to}
+                  onChange={(e) => setEditForm({ ...editForm, rank_to: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Reward Type</Label>
+              <Select
+                value={editForm.reward_type}
+                onValueChange={(val) => setEditForm({ ...editForm, reward_type: val ?? "" })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="token">Token</SelectItem>
+                  <SelectItem value="badge">Badge</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                min={0}
+                value={editForm.amount}
+                onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label>Active</Label>
+              <Switch
+                checked={editForm.is_active}
+                onCheckedChange={(checked) => setEditForm({ ...editForm, is_active: checked })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditConfig(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editConfig) {
+                  editConfigMutation.mutate({ id: editConfig.id, data: editForm });
+                }
+              }}
+              disabled={editConfigMutation.isPending}
+            >
+              {editConfigMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+          {editConfigMutation.isError && (
+            <p className="text-sm text-destructive">Failed to update config. Please try again.</p>
           )}
         </DialogContent>
       </Dialog>
