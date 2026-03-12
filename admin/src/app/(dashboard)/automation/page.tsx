@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -79,34 +79,51 @@ const TRIGGER_MAP: Record<string, string> = {
   syncSports: "syncSports",
 };
 
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleString();
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function AutomationPage() {
   const queryClient = useQueryClient();
   const [triggeringJob, setTriggeringJob] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const { data: sports, isLoading: sportsLoading } = useQuery<Sport[]>({
     queryKey: ["admin-sports"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/sports");
-      return res.data?.data || res.data || [];
+      const d = res.data?.data ?? res.data;
+      return Array.isArray(d) ? d : [];
     },
+    enabled: mounted,
   });
 
   const { data: status } = useQuery<Record<string, JobStatus>>({
     queryKey: ["admin-automation-status"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/automation/status");
-      return res.data?.data || res.data || {};
+      const d = res.data?.data ?? res.data;
+      return (d && typeof d === "object" && !Array.isArray(d)) ? d : {};
     },
     refetchInterval: 30000,
+    enabled: mounted,
   });
 
   const { data: logs } = useQuery<AutomationLog[]>({
     queryKey: ["admin-automation-logs"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/automation/logs");
-      return res.data?.data || res.data || [];
+      const d = res.data?.data ?? res.data;
+      return Array.isArray(d) ? d : [];
     },
     refetchInterval: 30000,
+    enabled: mounted,
   });
 
   const toggleSportMutation = useMutation({
@@ -182,7 +199,7 @@ export default function AutomationPage() {
                     <p className="text-xs text-muted-foreground">{description}</p>
                     {jobStatus?.last_run && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Last: {new Date(jobStatus.last_run).toLocaleString()}
+                        Last: {formatDate(jobStatus.last_run)}
                         {jobStatus.items_processed
                           ? ` (${jobStatus.items_processed} items)`
                           : ""}
@@ -312,7 +329,7 @@ export default function AutomationPage() {
                       {log.items_processed}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {new Date(log.created_at).toLocaleString()}
+                      {formatDate(log.created_at)}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                       {log.error_message ||

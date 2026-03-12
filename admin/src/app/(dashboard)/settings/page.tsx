@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -31,13 +31,18 @@ export default function SettingsPage() {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const { data: settings, isLoading } = useQuery<SettingView[]>({
     queryKey: ["admin-settings"],
     queryFn: async () => {
       const res = await apiClient.get("/admin/settings");
-      return res.data?.data || res.data || [];
+      const d = res.data?.data ?? res.data;
+      return Array.isArray(d) ? d : [];
     },
+    enabled: mounted,
   });
 
   const updateMutation = useMutation({
@@ -207,7 +212,7 @@ export default function SettingsPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {setting.updated_at
-                        ? new Date(setting.updated_at).toLocaleDateString()
+                        ? new Date(setting.updated_at).toISOString().split("T")[0]
                         : "-"}
                     </TableCell>
                     <TableCell>
