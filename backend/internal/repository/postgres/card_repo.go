@@ -26,12 +26,19 @@ func NewCardRepo(db *DB) *CardRepo {
 
 func scanCard(scan func(dest ...interface{}) error) (*domain.Card, error) {
 	var c domain.Card
+	var source, resolutionCriteria *string
 	err := scan(
 		&c.ID, &c.MatchID, &c.QuestionText, &c.Tier, &c.HighAnswerIsYes,
 		&c.CorrectAnswer, &c.IsResolved, &c.AvailableDate, &c.ExpiresAt,
-		&c.Source, &c.AIPromptData, &c.ResolutionCriteria,
+		&source, &c.AIPromptData, &resolutionCriteria,
 		&c.CreatedAt, &c.UpdatedAt,
 	)
+	if source != nil {
+		c.Source = *source
+	}
+	if resolutionCriteria != nil {
+		c.ResolutionCriteria = *resolutionCriteria
+	}
 	return &c, err
 }
 

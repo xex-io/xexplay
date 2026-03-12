@@ -27,14 +27,17 @@ func NewEventRepo(db *DB) *EventRepo {
 
 func scanEvent(scan func(dest ...interface{}) error) (*domain.Event, error) {
 	var e domain.Event
-	var sportKey *string
+	var sportKey, source *string
 	err := scan(
 		&e.ID, &e.Name, &e.Slug, &e.Description, &e.StartDate, &e.EndDate,
-		&e.IsActive, &e.ScoringMultiplier, &e.Source, &sportKey,
+		&e.IsActive, &e.ScoringMultiplier, &source, &sportKey,
 		&e.CreatedAt, &e.UpdatedAt,
 	)
 	if sportKey != nil {
 		e.SportKey = *sportKey
+	}
+	if source != nil {
+		e.Source = *source
 	}
 	return &e, err
 }

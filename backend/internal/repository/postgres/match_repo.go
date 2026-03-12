@@ -27,12 +27,12 @@ func NewMatchRepo(db *DB) *MatchRepo {
 
 func scanMatch(scan func(dest ...interface{}) error) (*domain.Match, error) {
 	var m domain.Match
-	var extID, sportKey *string
+	var extID, sportKey, source *string
 	var homeI18n, awayI18n []byte
 	err := scan(
 		&m.ID, &m.EventID, &m.HomeTeam, &m.AwayTeam, &homeI18n, &awayI18n,
 		&m.KickoffTime, &m.Status, &m.HomeScore, &m.AwayScore, &m.ResultData,
-		&extID, &sportKey, &m.Source,
+		&extID, &sportKey, &source,
 		&m.CreatedAt, &m.UpdatedAt,
 	)
 	if extID != nil {
@@ -40,6 +40,9 @@ func scanMatch(scan func(dest ...interface{}) error) (*domain.Match, error) {
 	}
 	if sportKey != nil {
 		m.SportKey = *sportKey
+	}
+	if source != nil {
+		m.Source = *source
 	}
 	if len(homeI18n) > 0 {
 		_ = json.Unmarshal(homeI18n, &m.HomeTeamI18n)
