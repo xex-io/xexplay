@@ -43,19 +43,22 @@ func Auth(jwtSecret string, userRepo *postgres.UserRepo) gin.HandlerFunc {
 		}
 
 		// Resolve xex_user_id to internal Play user ID
-		user, err := userRepo.FindByXexUserID(c.Request.Context(), claims.UserID)
-		if err != nil {
-			response.InternalError(c, "failed to resolve user")
-			c.Abort()
-			return
+		if userRepo != nil {
+			user, err := userRepo.FindByXexUserID(c.Request.Context(), claims.UserID)
+			if err != nil {
+				response.InternalError(c, "failed to resolve user")
+				c.Abort()
+				return
+			}
+			if user == nil {
+				response.Unauthorized(c, "user not registered")
+				c.Abort()
+				return
+			}
+			c.Set(ContextKeyUserID, user.ID)
+		} else {
+			c.Set(ContextKeyUserID, claims.UserID)
 		}
-		if user == nil {
-			response.Unauthorized(c, "user not registered")
-			c.Abort()
-			return
-		}
-
-		c.Set(ContextKeyUserID, user.ID)
 		c.Set(ContextKeyXexUserID, claims.UserID)
 		c.Set(ContextKeyEmail, claims.Email)
 		c.Set(ContextKeyRole, claims.Role)

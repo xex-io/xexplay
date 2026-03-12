@@ -63,7 +63,7 @@ func TestSQLInjection_SpecialCharsInInput(t *testing.T) {
 	for _, header := range maliciousInputs {
 		t.Run(header, func(t *testing.T) {
 			r := gin.New()
-			r.Use(Auth(testSecret))
+			r.Use(Auth(testSecret, nil))
 			r.GET("/test", func(c *gin.Context) {
 				response.OK(c, nil)
 			})
@@ -102,7 +102,7 @@ func TestSQLInjection_SpecialCharsInJWTClaims(t *testing.T) {
 	tokenStr := makeTestToken(t, claims, testSecret)
 
 	r := gin.New()
-	r.Use(Auth(testSecret))
+	r.Use(Auth(testSecret, nil))
 	r.GET("/test", func(c *gin.Context) {
 		email, _ := c.Get(ContextKeyEmail)
 		response.OK(c, map[string]interface{}{"email": email})
@@ -304,7 +304,7 @@ func TestAuth_RejectsExpiredToken(t *testing.T) {
 	tokenStr := makeTestToken(t, claims, testSecret)
 
 	r := gin.New()
-	r.Use(Auth(testSecret))
+	r.Use(Auth(testSecret, nil))
 	r.GET("/test", func(c *gin.Context) {
 		response.OK(c, nil)
 	})
@@ -324,7 +324,7 @@ func TestAuth_RejectsInvalidSignature(t *testing.T) {
 	tokenStr := makeTestToken(t, validClaims(), "wrong-secret-key")
 
 	r := gin.New()
-	r.Use(Auth(testSecret))
+	r.Use(Auth(testSecret, nil))
 	r.GET("/test", func(c *gin.Context) {
 		response.OK(c, nil)
 	})
@@ -352,7 +352,7 @@ func TestAuth_RejectsMissingClaims(t *testing.T) {
 	tokenStr := makeTestToken(t, claims, testSecret)
 
 	r := gin.New()
-	r.Use(Auth(testSecret))
+	r.Use(Auth(testSecret, nil))
 	r.GET("/test", func(c *gin.Context) {
 		response.OK(c, nil)
 	})
@@ -384,7 +384,7 @@ func TestAuth_RejectsMalformedTokens(t *testing.T) {
 	for _, tt := range malformed {
 		t.Run(tt.name, func(t *testing.T) {
 			r := gin.New()
-			r.Use(Auth(testSecret))
+			r.Use(Auth(testSecret, nil))
 			r.GET("/test", func(c *gin.Context) {
 				response.OK(c, nil)
 			})
@@ -420,7 +420,7 @@ func TestAuth_RejectsRefreshTokenType(t *testing.T) {
 	tokenStr := makeTestToken(t, claims, testSecret)
 
 	r := gin.New()
-	r.Use(Auth(testSecret))
+	r.Use(Auth(testSecret, nil))
 	r.GET("/test", func(c *gin.Context) {
 		response.OK(c, nil)
 	})
@@ -441,7 +441,7 @@ func TestAuth_AcceptsValidToken(t *testing.T) {
 	tokenStr := makeTestToken(t, claims, testSecret)
 
 	r := gin.New()
-	r.Use(Auth(testSecret))
+	r.Use(Auth(testSecret, nil))
 	r.GET("/test", func(c *gin.Context) {
 		userID, _ := c.Get(ContextKeyUserID)
 		email, _ := c.Get(ContextKeyEmail)
@@ -480,7 +480,7 @@ func TestAuth_SetsContextValues(t *testing.T) {
 	var gotEmail, gotRole string
 
 	r := gin.New()
-	r.Use(Auth(testSecret))
+	r.Use(Auth(testSecret, nil))
 	r.GET("/test", func(c *gin.Context) {
 		uid, _ := c.Get(ContextKeyUserID)
 		gotUserID = uid.(uuid.UUID)
