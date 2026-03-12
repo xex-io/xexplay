@@ -15,18 +15,20 @@ const (
 )
 
 type Match struct {
-	ID          uuid.UUID       `json:"id"`
-	EventID     uuid.UUID       `json:"event_id"`
-	HomeTeam    string          `json:"home_team"`
-	AwayTeam    string          `json:"away_team"`
-	KickoffTime time.Time       `json:"kickoff_time"`
-	Status      string          `json:"status"`
-	HomeScore   *int            `json:"home_score,omitempty"`
-	AwayScore   *int            `json:"away_score,omitempty"`
-	ResultData  json.RawMessage `json:"result_data,omitempty"`
-	ExternalID  string          `json:"external_id,omitempty"`
-	SportKey    string          `json:"sport_key,omitempty"`
-	Source      string          `json:"source"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
+	ID            uuid.UUID         `json:"id"`
+	EventID       uuid.UUID         `json:"event_id"`
+	HomeTeam      string            `json:"home_team"`
+	AwayTeam      string            `json:"away_team"`
+	HomeTeamI18n  map[string]string `json:"home_team_i18n,omitempty"`
+	AwayTeamI18n  map[string]string `json:"away_team_i18n,omitempty"`
+	KickoffTime   time.Time         `json:"kickoff_time"`
+	Status        string            `json:"status"`
+	HomeScore     *int              `json:"home_score,omitempty"`
+	AwayScore     *int              `json:"away_score,omitempty"`
+	ResultData    json.RawMessage   `json:"result_data,omitempty"`
+	ExternalID    string            `json:"external_id,omitempty"`
+	SportKey      string            `json:"sport_key,omitempty"`
+	Source        string            `json:"source"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
 }

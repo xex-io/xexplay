@@ -1,0 +1,2 @@
+ALTER TABLE matches DROP COLUMN IF EXISTS home_team_i18n;
+ALTER TABLE matches DROP COLUMN IF EXISTS away_team_i18n;

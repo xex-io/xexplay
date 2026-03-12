@@ -71,12 +71,27 @@ func (s *SportsDataService) FetchUpcomingMatches(ctx context.Context) error {
 			continue
 		}
 
+		// Filter to next 3 days
+		var filtered []oddsapi.OddsMatch
+		var teamNames []string
 		for _, om := range matches {
-			// Only fetch matches within next 3 days
 			if om.CommenceTime.After(time.Now().Add(72 * time.Hour)) {
 				continue
 			}
+			filtered = append(filtered, om)
+			teamNames = append(teamNames, om.HomeTeam, om.AwayTeam)
+		}
 
+		// Batch-translate all team names for this sport
+		var teamTranslations map[string]map[string]string
+		if len(teamNames) > 0 && s.aiSvc != nil {
+			teamTranslations, err = s.aiSvc.TranslateTeamNames(ctx, teamNames)
+			if err != nil {
+				log.Warn().Err(err).Str("sport", sport.Key).Msg("failed to translate team names, continuing without translations")
+			}
+		}
+
+		for _, om := range filtered {
 			m := &domain.Match{
 				ID:          uuid.New(),
 				EventID:     event.ID,
@@ -87,6 +102,16 @@ func (s *SportsDataService) FetchUpcomingMatches(ctx context.Context) error {
 				ExternalID:  om.ID,
 				SportKey:    sport.Key,
 				Source:      "auto",
+			}
+
+			// Attach translated team names if available
+			if teamTranslations != nil {
+				if t, ok := teamTranslations[om.HomeTeam]; ok {
+					m.HomeTeamI18n = t
+				}
+				if t, ok := teamTranslations[om.AwayTeam]; ok {
+					m.AwayTeamI18n = t
+				}
 			}
 
 			if err := s.matchRepo.UpsertFromExternal(ctx, m); err != nil {

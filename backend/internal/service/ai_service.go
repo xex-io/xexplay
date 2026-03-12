@@ -13,7 +13,7 @@ import (
 )
 
 const anthropicAPIURL = "https://api.anthropic.com/v1/messages"
-const defaultModel = "claude-haiku-4-5-20251001"
+const defaultModel = "claude-sonnet-4-6"
 
 // AIService provides AI-powered content generation using Claude.
 type AIService struct {
@@ -131,7 +131,7 @@ func (s *AIService) GenerateCardQuestions(ctx context.Context, match MatchContex
 		totalCount, goldCount, silverCount, whiteCount,
 	)
 
-	text, err := s.callClaude(ctx, prompt, 4096)
+	text, err := s.callClaude(ctx, prompt, 8192)
 	if err != nil {
 		return nil, fmt.Errorf("generate cards: %w", err)
 	}
@@ -152,6 +152,51 @@ func (s *AIService) GenerateCardQuestions(ctx context.Context, match MatchContex
 	}
 
 	return cards, nil
+}
+
+// TranslateTeamNames translates a list of team names into all supported languages.
+func (s *AIService) TranslateTeamNames(ctx context.Context, teamNames []string) (map[string]map[string]string, error) {
+	if len(teamNames) == 0 {
+		return nil, nil
+	}
+
+	// Deduplicate
+	seen := make(map[string]bool)
+	unique := make([]string, 0, len(teamNames))
+	for _, name := range teamNames {
+		if !seen[name] {
+			seen[name] = true
+			unique = append(unique, name)
+		}
+	}
+
+	listing := ""
+	for _, name := range unique {
+		listing += "- " + name + "\n"
+	}
+
+	prompt := fmt.Sprintf(teamNameTranslationPrompt, listing)
+
+	text, err := s.callClaude(ctx, prompt, 4096)
+	if err != nil {
+		return nil, fmt.Errorf("translate team names: %w", err)
+	}
+
+	var result map[string]map[string]string
+	if err := json.Unmarshal([]byte(text), &result); err != nil {
+		start := bytes.IndexByte([]byte(text), '{')
+		end := bytes.LastIndexByte([]byte(text), '}')
+		if start >= 0 && end > start {
+			if err := json.Unmarshal([]byte(text[start:end+1]), &result); err != nil {
+				log.Error().Str("response", text).Msg("failed to parse team name translations")
+				return nil, fmt.Errorf("parse team translations: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("parse team translations: %w", err)
+		}
+	}
+
+	return result, nil
 }
 
 // AutoResolveAnswer determines if a prediction question answer is yes/no based on match results.
